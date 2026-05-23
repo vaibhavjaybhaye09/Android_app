@@ -94,21 +94,31 @@ class _RegisterScreenState extends State<RegisterScreen> {
               children: [
                 const SizedBox(height: 8),
                 const InstagramWordmark(),
-                const SizedBox(height: 16),
+                const SizedBox(height: 32),
                 const Text(
-                  'Sign up to discover and book photographers nearby.',
+                  'Create Account',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF1A1A1A),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  'Join PhotoHub to find the best photographers.',
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     color: Color(0xFF8E8E8E),
-                    fontWeight: FontWeight.w600,
                     fontSize: 15,
                   ),
                 ),
-                const SizedBox(height: 22),
+                const SizedBox(height: 32),
                 AuthTextField(
                   controller: _emailController,
-                  hintText: 'Email',
+                  hintText: 'Email Address',
                   keyboardType: TextInputType.emailAddress,
+                  prefixIcon: Icons.email_outlined,
                   validator: (value) {
                     if (value == null || value.trim().isEmpty) {
                       return 'Email is required';
@@ -119,11 +129,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     return null;
                   },
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 16),
                 AuthTextField(
                   controller: _passwordController,
                   hintText: 'Password',
                   obscureText: true,
+                  prefixIcon: Icons.lock_outline,
                   validator: (value) {
                     if (value == null || value.isEmpty) {
                       return 'Password is required';
@@ -134,11 +145,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     return null;
                   },
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 16),
                 AuthTextField(
                   controller: _confirmPasswordController,
                   hintText: 'Confirm password',
                   obscureText: true,
+                  prefixIcon: Icons.lock_clock_outlined,
                   validator: (value) {
                     if (value != _passwordController.text) {
                       return 'Passwords do not match';
@@ -146,29 +158,31 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     return null;
                   },
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 16),
                 DropdownButtonFormField<String>(
                   initialValue: _selectedRole,
                   items: const [
                     DropdownMenuItem(
                       value: 'customer',
-                      child: Text('Customer'),
+                      child: Text('I am a Customer'),
                     ),
                     DropdownMenuItem(
                       value: 'photographer',
-                      child: Text('Photographer'),
+                      child: Text('I am a Photographer'),
                     ),
                   ],
                   decoration: InputDecoration(
                     filled: true,
-                    fillColor: const Color(0xFFFAFAFA),
+                    fillColor: const Color(0xFFF8F9FA),
+                    prefixIcon: const Icon(Icons.person_outline, size: 20, color: Color(0xFF8E8E8E)),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
                     border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(10),
-                      borderSide: const BorderSide(color: Color(0xFFDBDBDB)),
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(color: Color(0xFFF0F0F0)),
                     ),
                     enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(10),
-                      borderSide: const BorderSide(color: Color(0xFFDBDBDB)),
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(color: Color(0xFFF0F0F0)),
                     ),
                   ),
                   onChanged: (value) {

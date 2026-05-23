@@ -95,6 +95,23 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
+  Future<String> resetPassword({
+    required String email,
+    required String otp,
+    required String newPassword,
+  }) async {
+    _setLoading(true);
+    try {
+      return await _authService.resetPassword(
+        email: email,
+        otp: otp,
+        newPassword: newPassword,
+      );
+    } finally {
+      _setLoading(false);
+    }
+  }
+
   Future<void> logout() async {
     _currentUser = null;
     await _storage.deleteAll();

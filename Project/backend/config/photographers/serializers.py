@@ -25,7 +25,9 @@ class PhotographerProfileSerializer(serializers.ModelSerializer):
         model = PhotographerProfile
         fields = (
             'id', 'user', 'user_id', 'display_name', 'profile_picture', 'bio',
-            'website', 'location', 'phone_number', 'followers', 'following',
+            'city', 'area', 'pincode', 'experience', 'rating',
+            'website', 'location', 'phone_number', 'camera_details', 'lenses',
+            'is_team', 'team_members_count', 'followers', 'following',
             'followers_count', 'following_count', 'total_likes_received',
             'total_views_received', 'is_verified_photographer', 'verification_badge',
             'created_at', 'updated_at'
@@ -45,15 +47,27 @@ class PostSerializer(serializers.ModelSerializer):
     likes_count = serializers.IntegerField(read_only=True)
     comments_count = serializers.IntegerField(read_only=True)
     is_liked_by_user = serializers.SerializerMethodField()
+    photographer_location = serializers.SerializerMethodField()
     
     class Meta:
         model = Post
         fields = (
             'id', 'photographer', 'photographer_id', 'image', 'caption', 'location',
-            'likes', 'likes_count', 'comments_count', 'is_archived', 'is_liked_by_user',
-            'created_at', 'updated_at'
+            'photographer_location', 'likes', 'likes_count', 'comments_count', 
+            'is_archived', 'is_liked_by_user', 'created_at', 'updated_at'
         )
         read_only_fields = ('id', 'likes', 'created_at', 'updated_at')
+    
+    def get_photographer_location(self, obj):
+        try:
+            profile = PhotographerProfile.objects.get(user=obj.photographer)
+            return {
+                'city': profile.city,
+                'area': profile.area,
+                'pincode': profile.pincode
+            }
+        except PhotographerProfile.DoesNotExist:
+            return None
     
     def get_is_liked_by_user(self, obj):
         request = self.context.get('request')

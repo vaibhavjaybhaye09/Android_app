@@ -1,14 +1,31 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../accounts/providers/auth_provider.dart';
+import '../providers/profile_provider.dart';
+import 'edit_profile_screen.dart';
 
-class PhotographerProfileScreen extends StatelessWidget {
+class PhotographerProfileScreen extends StatefulWidget {
   const PhotographerProfileScreen({super.key});
+
+  @override
+  State<PhotographerProfileScreen> createState() => _PhotographerProfileScreenState();
+}
+
+class _PhotographerProfileScreenState extends State<PhotographerProfileScreen> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<ProfileProvider>().fetchProfile('photographer');
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
     final authProvider = context.watch<AuthProvider>();
+    final profileProvider = context.watch<ProfileProvider>();
     final user = authProvider.currentUser;
+    final profile = profileProvider.profileData;
 
     return Scaffold(
       appBar: AppBar(
@@ -25,51 +42,60 @@ class PhotographerProfileScreen extends StatelessWidget {
           ),
         ],
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          children: [
-            Stack(
-              children: [
-                const CircleAvatar(
-                  radius: 60,
-                  child: Icon(Icons.camera_alt, size: 60),
-                ),
-                Positioned(
-                  bottom: 0,
-                  right: 0,
-                  child: CircleAvatar(
-                    backgroundColor: Theme.of(context).primaryColor,
-                    radius: 18,
-                    child: const Icon(Icons.edit, color: Colors.white, size: 18),
+      body: profileProvider.isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : SingleChildScrollView(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                children: [
+                  Stack(
+                    children: [
+                      const CircleAvatar(
+                        radius: 60,
+                        child: Icon(Icons.camera_alt, size: 60),
+                      ),
+                      Positioned(
+                        bottom: 0,
+                        right: 0,
+                        child: CircleAvatar(
+                          backgroundColor: Theme.of(context).primaryColor,
+                          radius: 18,
+                          child: const Icon(Icons.edit, color: Colors.white, size: 18),
+                        ),
+                      ),
+                    ],
                   ),
-                ),
-              ],
+                  const SizedBox(height: 24),
+                  Text(
+                    profile?['display_name'] ?? user?.email ?? 'Photographer',
+                    style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 8),
+                  const Chip(label: Text('Photographer')),
+                  const SizedBox(height: 32),
+                  _buildSectionTitle('Equipment & Team'),
+                  _buildInfoTile(Icons.camera_enhance_outlined, 'Camera Details', profile?['camera_details'] ?? 'Not Set'),
+                  _buildInfoTile(Icons.camera_outlined, 'Lenses', profile?['lenses'] ?? 'Not Set'),
+                  _buildInfoTile(Icons.group_outlined, 'Team Members', profile?['team_members_count']?.toString() ?? '1'),
+                  const SizedBox(height: 24),
+                  _buildSectionTitle('General Info'),
+                  _buildInfoTile(Icons.location_on_outlined, 'Location', profile?['location'] ?? 'Not Set'),
+                  _buildInfoTile(Icons.phone_outlined, 'Phone', profile?['phone_number'] ?? 'Not Set'),
+                  const SizedBox(height: 24),
+                  ElevatedButton(
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const EditProfileScreen(role: 'photographer'),
+                        ),
+                      ).then((_) => profileProvider.fetchProfile('photographer'));
+                    },
+                    child: const Text('Edit Professional Profile'),
+                  ),
+                ],
+              ),
             ),
-            const SizedBox(height: 24),
-            Text(
-              user?.email ?? 'Photographer',
-              style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 8),
-            const Chip(label: Text('Photographer')),
-            const SizedBox(height: 32),
-            _buildSectionTitle('Equipment & Team'),
-            _buildInfoTile(Icons.camera_enhance_outlined, 'Camera Details', 'Not Set'),
-            _buildInfoTile(Icons.camera_outlined, 'Lenses', 'Not Set'),
-            _buildInfoTile(Icons.group_outlined, 'Team Members', '1'),
-            const SizedBox(height: 24),
-            _buildSectionTitle('General Info'),
-            _buildInfoTile(Icons.location_on_outlined, 'Location', 'Not Set'),
-            _buildInfoTile(Icons.phone_outlined, 'Phone', 'Not Set'),
-            const SizedBox(height: 24),
-            ElevatedButton(
-              onPressed: () {},
-              child: const Text('Edit Professional Profile'),
-            ),
-          ],
-        ),
-      ),
     );
   }
 

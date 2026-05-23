@@ -84,20 +84,31 @@ class _LoginScreenState extends State<LoginScreen> {
               children: [
                 const SizedBox(height: 8),
                 const InstagramWordmark(),
-                const SizedBox(height: 12),
+                const SizedBox(height: 32),
+                const Text(
+                  'Welcome Back',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF1A1A1A),
+                  ),
+                ),
+                const SizedBox(height: 8),
                 const Text(
                   'Sign in to continue booking photographers.',
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     color: Color(0xFF8E8E8E),
-                    fontSize: 14,
+                    fontSize: 15,
                   ),
                 ),
-                const SizedBox(height: 28),
+                const SizedBox(height: 32),
                 AuthTextField(
                   controller: _emailController,
-                  hintText: 'Email',
+                  hintText: 'Email Address',
                   keyboardType: TextInputType.emailAddress,
+                  prefixIcon: Icons.email_outlined,
                   validator: (value) {
                     if (value == null || value.trim().isEmpty) {
                       return 'Email is required';
@@ -108,11 +119,12 @@ class _LoginScreenState extends State<LoginScreen> {
                     return null;
                   },
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 16),
                 AuthTextField(
                   controller: _passwordController,
                   hintText: 'Password',
                   obscureText: true,
+                  prefixIcon: Icons.lock_outline,
                   textInputAction: TextInputAction.done,
                   validator: (value) {
                     if (value == null || value.isEmpty) {

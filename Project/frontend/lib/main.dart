@@ -9,6 +9,10 @@ import 'features/accounts/screens/login_screen.dart';
 import 'features/accounts/screens/otp_verification_screen.dart';
 import 'features/accounts/screens/register_screen.dart';
 import 'features/photographers/screens/home_screen.dart';
+import 'features/bookings/providers/booking_provider.dart';
+import 'features/photographers/providers/photographer_provider.dart';
+import 'features/profile/providers/profile_provider.dart';
+import 'features/chat/providers/chat_provider.dart';
 import 'services/api_service.dart';
 import 'services/auth_service.dart';
 
@@ -48,6 +52,18 @@ class MyApp extends StatelessWidget {
         Provider<ApiService>.value(value: apiService),
         ChangeNotifierProvider(
           create: (_) => AuthProvider(authService, secureStorage),
+        ),
+        ChangeNotifierProvider(
+          create: (_) => PhotographerProvider(apiService),
+        ),
+        ChangeNotifierProvider(
+          create: (_) => BookingProvider(apiService),
+        ),
+        ChangeNotifierProvider(
+          create: (_) => ProfileProvider(apiService),
+        ),
+        ChangeNotifierProvider(
+          create: (_) => ChatProvider(apiService),
         ),
       ],
       child: MaterialApp(
@@ -102,22 +118,59 @@ class SplashScreen extends StatefulWidget {
   State<SplashScreen> createState() => _SplashScreenState();
 }
 
-class _SplashScreenState extends State<SplashScreen> {
+class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _scaleAnimation;
+  late Animation<double> _opacityAnimation;
+  late Animation<double> _shutterAnimation;
+
   @override
   void initState() {
     super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 2500),
+    );
+
+    _scaleAnimation = Tween<double>(begin: 0.8, end: 1.0).animate(
+      CurvedAnimation(
+        parent: _controller,
+        curve: const Interval(0.0, 0.6, curve: Curves.easeOutBack),
+      ),
+    );
+
+    _opacityAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(
+        parent: _controller,
+        curve: const Interval(0.0, 0.4, curve: Curves.easeIn),
+      ),
+    );
+
+    _shutterAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(
+        parent: _controller,
+        curve: const Interval(0.4, 1.0, curve: Curves.easeInOutQuart),
+      ),
+    );
+
+    _controller.forward();
     _checkLoginStatus();
   }
 
-  Future<void> _checkLoginStatus() async {
-    await Future.delayed(const Duration(seconds: 2));
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
 
+  Future<void> _checkLoginStatus() async {
+    await Future.delayed(const Duration(milliseconds: 3000));
+
+    if (!mounted) return;
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
     final isLoggedIn = await authProvider.isLoggedIn();
 
-    if (!mounted) {
-      return;
-    }
+    if (!mounted) return;
 
     if (isLoggedIn) {
       Navigator.pushReplacementNamed(context, '/home');
@@ -129,46 +182,99 @@ class _SplashScreenState extends State<SplashScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              Color(0xFFFDFAF5),
-              Color(0xFFF7F7F7),
-            ],
-          ),
-        ),
-        child: const Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              _SplashLogo(),
-              SizedBox(height: 30),
-              Text(
-                'PhotoHub',
-                style: TextStyle(
-                  fontSize: 28,
-                  fontWeight: FontWeight.bold,
-                  color: Color(0xFF262626),
+      backgroundColor: Colors.white,
+      body: AnimatedBuilder(
+        animation: _controller,
+        builder: (context, child) {
+          return Container(
+            width: double.infinity,
+            decoration: const BoxDecoration(color: Colors.white),
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                // Aperture/Shutter Effect
+                Transform.scale(
+                  scale: 1.0 + (1.0 - _shutterAnimation.value) * 2,
+                  child: Opacity(
+                    opacity: (1.0 - _shutterAnimation.value).clamp(0.0, 1.0),
+                    child: Container(
+                      width: MediaQuery.of(context).size.width,
+                      height: MediaQuery.of(context).size.width,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: const Color(0xFF1A1A1A),
+                          width: 100 * (1.0 - _shutterAnimation.value),
+                        ),
+                      ),
+                    ),
+                  ),
                 ),
-              ),
-              SizedBox(height: 10),
-              Text(
-                'Find the perfect photographer',
-                style: TextStyle(
-                  fontSize: 16,
-                  color: Color(0xFF8E8E8E),
+                
+                // Content
+                Opacity(
+                  opacity: _opacityAnimation.value,
+                  child: Transform.scale(
+                    scale: _scaleAnimation.value,
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(24),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF0095F6).withOpacity(0.1),
+                            shape: BoxShape.circle,
+                            boxShadow: [
+                              BoxShadow(
+                                color: const Color(0xFF0095F6).withOpacity(0.1),
+                                blurRadius: 40,
+                                spreadRadius: 10,
+                              ),
+                            ],
+                          ),
+                          child: const Icon(
+                            Icons.camera_rounded,
+                            size: 80,
+                            color: Color(0xFF0095F6),
+                          ),
+                        ),
+                        const SizedBox(height: 32),
+                        const Text(
+                          'PhotoHub',
+                          style: TextStyle(
+                            fontSize: 40,
+                            fontWeight: FontWeight.w900,
+                            color: Color(0xFF1A1A1A),
+                            letterSpacing: -1,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        Text(
+                          'Capture Every Moment',
+                          style: TextStyle(
+                            fontSize: 16,
+                            color: Colors.grey[600],
+                            fontWeight: FontWeight.w500,
+                            letterSpacing: 1.2,
+                          ),
+                        ),
+                        const SizedBox(height: 80),
+                        const SizedBox(
+                          width: 30,
+                          height: 30,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF0095F6)),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
-              ),
-              SizedBox(height: 40),
-              CircularProgressIndicator(
-                valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF0095F6)),
-              ),
-            ],
-          ),
-        ),
+              ],
+            ),
+          );
+        },
       ),
     );
   }
@@ -186,7 +292,7 @@ class _SplashLogo extends StatelessWidget {
         shape: BoxShape.circle,
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.08),
+            color: Colors.black.withValues(alpha: 0.08),
             blurRadius: 24,
             spreadRadius: 2,
           ),

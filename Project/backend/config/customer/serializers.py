@@ -16,8 +16,9 @@ class CustomerProfileSerializer(serializers.ModelSerializer):
     class Meta:
         model = CustomerProfile
         fields = (
-            'id', 'user', 'user_id', 'phone_number', 'saved_addresses',
-            'favorite_photographers', 'favorite_photographers_details', 'created_at'
+            'id', 'user', 'user_id', 'full_name', 'profile_picture', 'phone_number',
+            'location', 'saved_addresses', 'favorite_photographers',
+            'favorite_photographers_details', 'created_at'
         )
         read_only_fields = ('id', 'created_at')
     

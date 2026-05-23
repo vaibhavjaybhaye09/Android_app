@@ -3,9 +3,10 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from django.shortcuts import get_object_or_404
 from django.db.models import Q
+from django.utils import timezone
 from .models import (
     PhotographerProfile, Post, Comment, Notification,
-    Portfolio, Category, Story
+    Portfolio, Category, Story, Conversation, Message
 )
 from .serializers import (
     PhotographerProfileSerializer, PostSerializer, CommentSerializer,
@@ -14,7 +15,6 @@ from .serializers import (
 )
 from accounts.permissions import IsPhotographer, IsVerified
 
-
 class PhotographerProfileViewSet(viewsets.ModelViewSet):
     queryset = PhotographerProfile.objects.all()
     serializer_class = PhotographerProfileSerializer
@@ -22,7 +22,7 @@ class PhotographerProfileViewSet(viewsets.ModelViewSet):
     
     def get_queryset(self):
         user = self.request.user
-        if user.role == 'admin':
+        if user.is_staff:
             return PhotographerProfile.objects.all()
         return PhotographerProfile.objects.filter(user=user)
     
@@ -64,6 +64,9 @@ class PhotographerProfileViewSet(viewsets.ModelViewSet):
         return Response(serializer.data, status=status.HTTP_200_OK)
 
 
+from django.db.models import Q, Case, When, Value, IntegerField
+from customer.models import CustomerProfile
+
 class PostViewSet(viewsets.ModelViewSet):
     queryset = Post.objects.all()
     serializer_class = PostSerializer
@@ -84,6 +87,63 @@ class PostViewSet(viewsets.ModelViewSet):
             queryset = queryset.filter(photographer__in=following_users)
         
         return queryset
+
+    @action(detail=False, methods=['get'])
+    def nearby_feed(self, request):
+        user = request.user
+        city = None
+        area = None
+        pincode = None
+
+        # Try to get location from CustomerProfile
+        try:
+            customer_profile = CustomerProfile.objects.get(user=user)
+            city = customer_profile.city
+            area = customer_profile.area
+            pincode = customer_profile.pincode
+        except CustomerProfile.DoesNotExist:
+            # Try to get location from PhotographerProfile
+            try:
+                photographer_profile = PhotographerProfile.objects.get(user=user)
+                city = photographer_profile.city
+                area = photographer_profile.area
+                pincode = photographer_profile.pincode
+            except PhotographerProfile.DoesNotExist:
+                pass
+
+        if not city:
+            return Response({
+                "error": "Profile location details (city, area, pincode) are required for nearby feed."
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        # Base queryset: Posts from photographers in the same city
+        queryset = Post.objects.filter(
+            is_archived=False,
+            photographer__photographer_profile__city=city
+        ).distinct()
+
+        # Rank based on location proximity
+        queryset = queryset.annotate(
+            relevance=Case(
+                # Priority 1: Exact Area and Pincode match
+                When(
+                    Q(photographer__photographer_profile__area=area) & 
+                    Q(photographer__photographer_profile__pincode=pincode),
+                    then=Value(1)
+                ),
+                # Priority 2: Same City (already filtered, but we can give it a lower priority weight)
+                default=Value(2),
+                output_field=IntegerField(),
+            )
+        ).order_by('relevance', '-created_at')
+
+        page = self.paginate_queryset(queryset)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+
+        serializer = self.get_serializer(queryset, many=True)
+        return Response(serializer.data)
     
     def perform_create(self, serializer):
         serializer.save(photographer=self.request.user)
@@ -189,21 +249,17 @@ class PortfolioViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticated, IsVerified]
     
     def get_queryset(self):
-        if self.request.user.role == 'admin':
+        if self.request.user.is_staff:
             return Portfolio.objects.all()
         
         photographer_id = self.request.query_params.get('photographer')
         if photographer_id:
             return Portfolio.objects.filter(photographer_id=photographer_id)
-        
-        if self.request.user.role == 'photographer':
-            return Portfolio.objects.filter(photographer=self.request.user)
-        
-        return Portfolio.objects.filter(is_featured=True)
+
+        # In the new single-profile system, we filter by the user directly
+        return Portfolio.objects.filter(photographer=self.request.user)
     
     def perform_create(self, serializer):
-        if self.request.user.role != 'photographer':
-            raise permissions.PermissionDenied("Only photographers can create portfolio items")
         serializer.save(photographer=self.request.user)
 
 
@@ -233,8 +289,6 @@ class StoryViewSet(viewsets.ModelViewSet):
         )
     
     def perform_create(self, serializer):
-        if self.request.user.role != 'photographer':
-            raise permissions.PermissionDenied("Only photographers can create stories")
         serializer.save(photographer=self.request.user)
 
 
@@ -246,6 +300,7 @@ class ConversationViewSet(viewsets.ModelViewSet):
         return Conversation.objects.filter(participants=self.request.user)
     
     def create(self, request):
+        from accounts.models import User
         participant_id = request.data.get('participant_id')
         participant = get_object_or_404(User, id=participant_id)
         

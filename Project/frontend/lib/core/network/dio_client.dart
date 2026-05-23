@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 import '../constants/api_constants.dart';
 
@@ -16,6 +17,24 @@ class DioClient {
             },
           ),
         ) {
+    dio.interceptors.add(
+      InterceptorsWrapper(
+        onRequest: (options, handler) async {
+          const storage = FlutterSecureStorage();
+          final token = await storage.read(key: 'access_token');
+          if (token != null) {
+            options.headers['Authorization'] = 'Bearer $token';
+          }
+          return handler.next(options);
+        },
+        onError: (DioException e, handler) async {
+          if (e.response?.statusCode == 401) {
+            // Handle token refresh logic here if needed
+          }
+          return handler.next(e);
+        },
+      ),
+    );
     dio.interceptors.add(
       LogInterceptor(
         requestBody: true,

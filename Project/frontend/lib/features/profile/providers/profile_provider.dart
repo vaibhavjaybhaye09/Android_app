@@ -2,21 +2,23 @@ import 'package:flutter/material.dart';
 import '../../../services/api_service.dart';
 
 class ProfileProvider with ChangeNotifier {
-  ProfileProvider(this._apiService);
-
   final ApiService _apiService;
   Map<String, dynamic>? _profileData;
+  List<dynamic> _skills = [];
   bool _isLoading = false;
 
+  ProfileProvider(this._apiService);
+
   Map<String, dynamic>? get profileData => _profileData;
+  List<dynamic> get skills => _skills;
   bool get isLoading => _isLoading;
 
-  Future<void> fetchProfile(String role) async {
+  Future<void> fetchProfile(String _) async {
     _isLoading = true;
     notifyListeners();
-
     try {
-      _profileData = await _apiService.getMyProfile(role);
+      _profileData = await _apiService.getMyProfile();
+      _skills = await _apiService.getSkills();
     } catch (e) {
       debugPrint('Error fetching profile: $e');
     } finally {
@@ -25,16 +27,14 @@ class ProfileProvider with ChangeNotifier {
     }
   }
 
-  Future<bool> updateProfile(String role, Map<String, dynamic> data) async {
+  Future<void> updateProfile(Map<String, dynamic> data) async {
     _isLoading = true;
     notifyListeners();
-
     try {
-      _profileData = await _apiService.updateProfile(role, data);
-      return true;
+      _profileData = await _apiService.updateProfile(data);
     } catch (e) {
       debugPrint('Error updating profile: $e');
-      return false;
+      rethrow;
     } finally {
       _isLoading = false;
       notifyListeners();

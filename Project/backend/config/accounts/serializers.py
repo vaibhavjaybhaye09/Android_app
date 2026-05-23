@@ -1,143 +1,101 @@
 from rest_framework import serializers
-from django.contrib.auth import authenticate
-from django.utils import timezone
-from .models import User, EmailOTP
+from django.contrib.auth import get_user_model
+from .models import User, UserProfile, Skill, Service, PortfolioItem, EmailOTP
 
+User = get_user_model()
 
-class RegisterSerializer(serializers.ModelSerializer):
-    password = serializers.CharField(write_only=True, required=True, style={'input_type': 'password'})
-    confirm_password = serializers.CharField(write_only=True, required=True, style={'input_type': 'password'})
-    
+class SkillSerializer(serializers.ModelSerializer):
     class Meta:
-        model = User
-        fields = ('email', 'password', 'confirm_password', 'role')
-    
-    def validate(self, attrs):
-        # Check if passwords match
-        if attrs['password'] != attrs['confirm_password']:
-            raise serializers.ValidationError({
-                "confirm_password": "Passwords do not match."
-            })
-        
-        # Validate password length
-        if len(attrs['password']) < 8:
-            raise serializers.ValidationError({
-                "password": "Password must be at least 8 characters long."
-            })
-        
-        # Validate role
-        if attrs.get('role') not in ['photographer', 'customer']:
-            attrs['role'] = 'customer'  # Default to customer
-        
-        # Check if email already exists
-        if User.objects.filter(email=attrs['email']).exists():
-            raise serializers.ValidationError({
-                "email": "A user with this email already exists."
-            })
-        
-        return attrs
-    
-    def create(self, validated_data):
-        validated_data.pop('confirm_password')
-        user = User.objects.create_user(
-            email=validated_data['email'],
-            password=validated_data['password'],
-            role=validated_data.get('role', 'customer')
-        )
-        return user
+        model = Skill
+        fields = ('id', 'name')
 
+class UserProfileSerializer(serializers.ModelSerializer):
+    skills = SkillSerializer(many=True, read_only=True)
+    skill_ids = serializers.ListField(
+        child=serializers.IntegerField(), write_only=True, required=False
+    )
+    email = serializers.EmailField(source='user.email', read_only=True)
+
+    class Meta:
+        model = UserProfile
+        fields = ('id', 'email', 'display_name', 'profile_picture', 'bio', 'location', 'skills', 'skill_ids')
+
+    def update(self, instance, validated_data):
+        skill_ids = validated_data.pop('skill_ids', None)
+        if skill_ids is not None:
+            instance.skills.set(Skill.objects.filter(id__in=skill_ids))
+        return super().update(instance, validated_data)
+
+class ServiceSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Service
+        fields = '__all__'
+        read_only_fields = ('user',)
+
+class PortfolioItemSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = PortfolioItem
+        fields = '__all__'
+        read_only_fields = ('user',)
 
 class UserSerializer(serializers.ModelSerializer):
+    profile = UserProfileSerializer(read_only=True)
+    
     class Meta:
         model = User
-        fields = ('id', 'email', 'role', 'is_verified', 'date_joined', 'last_login')
-        read_only_fields = ('id', 'is_verified', 'date_joined', 'last_login')
+        fields = ('id', 'email', 'profile')
 
+class RegisterSerializer(serializers.ModelSerializer):
+    password = serializers.CharField(write_only=True)
+
+    class Meta:
+        model = User
+        fields = ('email', 'password')
+
+    def create(self, validated_data):
+        user = User.objects.create_user(
+            email=validated_data['email'],
+            password=validated_data['password']
+        )
+        UserProfile.objects.create(user=user)
+        return user
 
 class EmailOTPSerializer(serializers.ModelSerializer):
     class Meta:
         model = EmailOTP
-        fields = ('id', 'user', 'otp', 'created_at', 'is_verified')
-        read_only_fields = ('id', 'created_at')
-
+        fields = '__all__'
 
 class ChangePasswordSerializer(serializers.Serializer):
-    old_password = serializers.CharField(required=True, write_only=True)
-    new_password = serializers.CharField(required=True, write_only=True)
-    confirm_password = serializers.CharField(required=True, write_only=True)
-    
-    def validate(self, attrs):
-        # Check if new passwords match
-        if attrs['new_password'] != attrs['confirm_password']:
-            raise serializers.ValidationError({
-                "confirm_password": "New passwords do not match."
-            })
-        
-        # Validate password length
-        if len(attrs['new_password']) < 8:
-            raise serializers.ValidationError({
-                "new_password": "Password must be at least 8 characters long."
-            })
-        
-        return attrs
-    
+    old_password = serializers.CharField(required=True)
+    new_password = serializers.CharField(required=True)
+
     def validate_old_password(self, value):
         user = self.context['request'].user
         if not user.check_password(value):
-            raise serializers.ValidationError("Old password is incorrect.")
+            raise serializers.ValidationError("Old password is not correct")
         return value
-
 
 class ForgotPasswordSerializer(serializers.Serializer):
-    email = serializers.EmailField(required=True)
-    
+    email = serializers.EmailField()
+
     def validate_email(self, value):
-        try:
-            user = User.objects.get(email=value)
-        except User.DoesNotExist:
-            raise serializers.ValidationError("User with this email does not exist.")
+        if not User.objects.filter(email=value).exists():
+            raise serializers.ValidationError("User with this email does not exist")
         return value
 
-
 class ResetPasswordSerializer(serializers.Serializer):
-    email = serializers.EmailField(required=True)
-    otp = serializers.CharField(max_length=6, required=True)
-    new_password = serializers.CharField(required=True, write_only=True)
-    confirm_password = serializers.CharField(required=True, write_only=True)
-    
-    def validate(self, attrs):
-        # Check if new passwords match
-        if attrs['new_password'] != attrs['confirm_password']:
-            raise serializers.ValidationError({
-                "confirm_password": "Passwords do not match."
-            })
-        
-        # Validate password length
-        if len(attrs['new_password']) < 8:
-            raise serializers.ValidationError({
-                "new_password": "Password must be at least 8 characters long."
-            })
-        
+    email = serializers.EmailField()
+    otp = serializers.CharField()
+    new_password = serializers.CharField()
+
+    def validate(self, data):
         try:
-            user = User.objects.get(email=attrs['email'])
-            otp_obj = EmailOTP.objects.filter(
-                user=user, 
-                otp=attrs['otp'], 
-                is_verified=False
-            ).last()
-            
+            user = User.objects.get(email=data['email'])
+            otp_obj = EmailOTP.objects.filter(user=user, otp=data['otp'], is_verified=False).last()
             if not otp_obj:
-                raise serializers.ValidationError("Invalid OTP.")
-            
-            # Check OTP expiry (10 minutes)
-            from django.utils import timezone
-            if (timezone.now() - otp_obj.created_at).seconds > 600:
-                raise serializers.ValidationError("OTP has expired. Please request a new one.")
-            
-            attrs['user'] = user
-            attrs['otp_obj'] = otp_obj
-            
+                raise serializers.ValidationError("Invalid OTP")
+            data['user'] = user
+            data['otp_obj'] = otp_obj
+            return data
         except User.DoesNotExist:
-            raise serializers.ValidationError("User with this email does not exist.")
-        
-        return attrs
+            raise serializers.ValidationError("User not found")

@@ -83,9 +83,53 @@ class AuthService {
   Future<String> requestPasswordReset({
     required String email,
   }) async {
-    throw AuthException(
-      'Forgot password screen is ready, but the backend reset-password API is not available yet for $email.',
-    );
+    try {
+      final response = await _dioClient.dio.post(
+        ApiConstants.forgotPassword,
+        data: {'email': email},
+      );
+      return response.data['message']?.toString() ?? 'Password reset email sent';
+    } on DioException catch (error) {
+      throw AuthException(_extractMessage(error));
+    }
+  }
+
+  Future<String> resetPassword({
+    required String email,
+    required String otp,
+    required String newPassword,
+  }) async {
+    try {
+      final response = await _dioClient.dio.post(
+        ApiConstants.resetPassword,
+        data: {
+          'email': email,
+          'otp': otp,
+          'new_password': newPassword,
+        },
+      );
+      return response.data['message']?.toString() ?? 'Password reset successful';
+    } on DioException catch (error) {
+      throw AuthException(_extractMessage(error));
+    }
+  }
+
+  Future<String> logout() async {
+    try {
+      final response = await _dioClient.dio.post(ApiConstants.logout);
+      return response.data['message']?.toString() ?? 'Logged out';
+    } on DioException catch (error) {
+      throw AuthException(_extractMessage(error));
+    }
+  }
+
+  Future<Map<String, dynamic>> getProfile() async {
+    try {
+      final response = await _dioClient.dio.get(ApiConstants.profile);
+      return response.data;
+    } on DioException catch (error) {
+      throw AuthException(_extractMessage(error));
+    }
   }
 
   String _extractMessage(DioException error) {

@@ -3,7 +3,8 @@ import string
 from django.utils.decorators import method_decorator
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from rest_framework import status, permissions
+from rest_framework import status, permissions, viewsets
+from rest_framework.decorators import action
 from django.contrib.auth import authenticate
 from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
@@ -11,10 +12,11 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from django.core.mail import send_mail
 from django.conf import settings
 
-from .models import User, EmailOTP
+from .models import User, EmailOTP, UserProfile, Skill, Service, PortfolioItem
 from .serializers import (
     RegisterSerializer, UserSerializer, EmailOTPSerializer,
-    ChangePasswordSerializer, ForgotPasswordSerializer, ResetPasswordSerializer
+    ChangePasswordSerializer, ForgotPasswordSerializer, ResetPasswordSerializer,
+    UserProfileSerializer, SkillSerializer, ServiceSerializer, PortfolioItemSerializer
 )
 
 
@@ -68,8 +70,7 @@ class RegisterView(APIView):
             
             return Response({
                 "message": "Registration successful. Please verify your email.",
-                "email": user.email,
-                "role": user.role
+                "email": user.email
             }, status=status.HTTP_201_CREATED)
         
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
@@ -123,8 +124,7 @@ class VerifyOTPView(APIView):
         
         return Response({
             "message": "Email verified successfully",
-            "email": user.email,
-            "role": user.role
+            "email": user.email
         }, status=status.HTTP_200_OK)
 
 
@@ -161,7 +161,6 @@ class LoginView(APIView):
             "user": {
                 "id": user.id,
                 "email": user.email,
-                "role": user.role,
                 "is_verified": user.is_verified
             }
         }, status=status.HTTP_200_OK)
@@ -274,16 +273,39 @@ class LogoutView(APIView):
             }, status=status.HTTP_400_BAD_REQUEST)
 
 
-class ProfileView(APIView):
+class UserProfileViewSet(viewsets.ModelViewSet):
+    queryset = UserProfile.objects.all()
+    serializer_class = UserProfileSerializer
     permission_classes = [permissions.IsAuthenticated]
-    
-    def get(self, request):
-        serializer = UserSerializer(request.user)
-        return Response(serializer.data, status=status.HTTP_200_OK)
-    
-    def put(self, request):
-        serializer = UserSerializer(request.user, data=request.data, partial=True)
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data, status=status.HTTP_200_OK)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    @action(detail=False, methods=['get', 'patch'])
+    def me(self, request):
+        profile, created = UserProfile.objects.get_or_create(user=request.user)
+        if request.method == 'GET':
+            serializer = self.get_serializer(profile)
+            return Response(serializer.data)
+
+        serializer = self.get_serializer(profile, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data)
+
+class SkillViewSet(viewsets.ReadOnlyModelViewSet):
+    queryset = Skill.objects.all()
+    serializer_class = SkillSerializer
+
+class ServiceViewSet(viewsets.ModelViewSet):
+    queryset = Service.objects.all()
+    serializer_class = ServiceSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def perform_create(self, serializer):
+        serializer.save(user=self.request.user)
+
+class PortfolioItemViewSet(viewsets.ModelViewSet):
+    queryset = PortfolioItem.objects.all()
+    serializer_class = PortfolioItemSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def perform_create(self, serializer):
+        serializer.save(user=self.request.user)

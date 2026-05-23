@@ -7,13 +7,26 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 import 'package:your_project_name/main.dart';
+import 'package:your_project_name/core/network/dio_client.dart';
+import 'package:your_project_name/services/api_service.dart';
+import 'package:your_project_name/services/auth_service.dart';
 
 void main() {
   testWidgets('Counter increments smoke test', (WidgetTester tester) async {
+    final dioClient = DioClient();
+    final apiService = ApiService(dioClient);
+    final authService = AuthService(dioClient);
+    const secureStorage = FlutterSecureStorage();
+
     // Build our app and trigger a frame.
-    await tester.pumpWidget(const MyApp());
+    await tester.pumpWidget(MyApp(
+      apiService: apiService,
+      authService: authService,
+      secureStorage: secureStorage,
+    ));
 
     // Verify that our counter starts at 0.
     expect(find.text('0'), findsOneWidget);

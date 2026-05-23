@@ -30,10 +30,21 @@ class PhotographerProfile(models.Model):
     display_name = models.CharField(max_length=255)
     profile_picture = models.ImageField(upload_to='photographers/', blank=True, null=True)
     bio = models.TextField(blank=True, null=True)
+    city = models.CharField(max_length=100)
+    area = models.CharField(max_length=100)
+    pincode = models.CharField(max_length=10)
+    experience = models.IntegerField(default=0)
+    rating = models.FloatField(default=0)
     website = models.URLField(blank=True, null=True)
     location = models.CharField(max_length=255, blank=True, null=True)
     phone_number = models.CharField(max_length=20, blank=True, null=True)
-    
+
+    # New Photographer Specific Fields
+    camera_details = models.CharField(max_length=255, blank=True, null=True)
+    lenses = models.TextField(blank=True, null=True)
+    is_team = models.BooleanField(default=False)
+    team_members_count = models.IntegerField(default=1)
+
     # Social features
     followers = models.ManyToManyField(
         settings.AUTH_USER_MODEL, 
