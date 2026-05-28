@@ -3,6 +3,7 @@ import 'package:image_picker/image_picker.dart';
 import '../core/network/dio_client.dart';
 import '../models/photographer_model.dart';
 import '../models/booking_model.dart';
+import '../models/post_model.dart';
 import '../core/constants/api_constants.dart';
 
 class ApiService {
@@ -138,6 +139,39 @@ class ApiService {
       return response.data;
     } on DioException catch (e) {
       throw Exception(e.message ?? 'Failed to load portfolio');
+    }
+  }
+
+  Future<List<PostModel>> getPhotographerPosts(int photographerId) async {
+    try {
+      final response = await dioClient.dio.get(
+        ApiConstants.posts,
+        queryParameters: {'photographer': photographerId},
+      );
+      final List<dynamic> data = response.data;
+      return data.map((json) => PostModel.fromJson(json)).toList();
+    } on DioException catch (e) {
+      throw Exception(e.message ?? 'Failed to load posts');
+    }
+  }
+
+  Future<void> likePost(int postId) async {
+    try {
+      await dioClient.dio.post('${ApiConstants.posts}$postId/like/');
+    } on DioException catch (e) {
+      throw Exception(e.message ?? 'Failed to like post');
+    }
+  }
+
+  Future<Map<String, dynamic>> addComment(int postId, String text) async {
+    try {
+      final response = await dioClient.dio.post(
+        ApiConstants.comments,
+        data: {'post_id': postId, 'text': text},
+      );
+      return response.data;
+    } on DioException catch (e) {
+      throw Exception(e.message ?? 'Failed to add comment');
     }
   }
 

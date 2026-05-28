@@ -18,9 +18,16 @@ class UserManager(BaseUserManager):
         return self.create_user(email, password, **extra_fields)
 
 class User(AbstractUser):
+    ROLE_CHOICES = (
+        ('unassigned', 'Unassigned'),
+        ('admin', 'Admin'),
+        ('photographer', 'Photographer'),
+        ('customer', 'Customer'),
+    )
     username = None
     email = models.EmailField(unique=True)
     is_verified = models.BooleanField(default=False)
+    role = models.CharField(max_length=20, choices=ROLE_CHOICES, default='unassigned')
     
     objects = UserManager()
 

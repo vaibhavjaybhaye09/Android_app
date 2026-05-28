@@ -21,10 +21,32 @@ class PhotographerProfileViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticated, IsVerified]
     
     def get_queryset(self):
-        user = self.request.user
-        if user.is_staff:
-            return PhotographerProfile.objects.all()
-        return PhotographerProfile.objects.filter(user=user)
+        queryset = PhotographerProfile.objects.all()
+        
+        # Admin can see everything
+        if self.request.user.is_staff:
+            return queryset
+            
+        # Search by name or city
+        search = self.request.query_params.get('search')
+        if search:
+            queryset = queryset.filter(
+                Q(display_name__icontains=search) | 
+                Q(city__icontains=search) |
+                Q(area__icontains=search)
+            )
+            
+        # Filter by experience
+        min_exp = self.request.query_params.get('min_experience')
+        if min_exp:
+            queryset = queryset.filter(experience__gte=min_exp)
+            
+        # Filter by rating
+        min_rating = self.request.query_params.get('min_rating')
+        if min_rating:
+            queryset = queryset.filter(rating__gte=min_rating)
+
+        return queryset
     
     @action(detail=True, methods=['post'])
     def follow(self, request, pk=None):
@@ -280,7 +302,14 @@ class StoryViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticated, IsVerified]
     
     def get_queryset(self):
-        # Only show active stories from followed photographers
+        photographer_id = self.request.query_params.get('photographer')
+        if photographer_id:
+            return Story.objects.filter(
+                photographer_id=photographer_id,
+                expires_at__gt=timezone.now()
+            )
+            
+        # Default: show active stories from followed photographers
         user = self.request.user
         following_users = user.following.all()
         return Story.objects.filter(

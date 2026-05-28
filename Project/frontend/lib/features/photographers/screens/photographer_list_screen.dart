@@ -648,7 +648,7 @@ class _NearbyPostCardState extends State<_NearbyPostCard> with SingleTickerProvi
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(0),
                     child: CachedNetworkImage(
-                      imageUrl: widget.post.image,
+                      imageUrl: widget.post.file,
                       width: double.infinity,
                       height: 350,
                       fit: BoxFit.cover,

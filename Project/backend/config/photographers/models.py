@@ -27,12 +27,12 @@ class PhotographerProfile(models.Model):
         on_delete=models.CASCADE, 
         related_name='photographer_profile'
     )
-    display_name = models.CharField(max_length=255)
+    display_name = models.CharField(max_length=255, blank=True, null=True)
     profile_picture = models.ImageField(upload_to='photographers/', blank=True, null=True)
     bio = models.TextField(blank=True, null=True)
-    city = models.CharField(max_length=100)
-    area = models.CharField(max_length=100)
-    pincode = models.CharField(max_length=10)
+    city = models.CharField(max_length=100, blank=True, null=True)
+    area = models.CharField(max_length=100, blank=True, null=True)
+    pincode = models.CharField(max_length=10, blank=True, null=True)
     experience = models.IntegerField(default=0)
     rating = models.FloatField(default=0)
     website = models.URLField(blank=True, null=True)
@@ -78,12 +78,17 @@ class PhotographerProfile(models.Model):
 
 
 class Post(models.Model):
+    POST_TYPES = (
+        ('image', 'Image'),
+        ('video', 'Video'),
+    )
     photographer = models.ForeignKey(
         settings.AUTH_USER_MODEL, 
         on_delete=models.CASCADE, 
         related_name='posts'
     )
-    image = models.ImageField(upload_to='posts/')
+    file = models.FileField(upload_to='posts/', null=True, blank=True)
+    post_type = models.CharField(max_length=10, choices=POST_TYPES, default='image')
     caption = models.TextField(blank=True, null=True)
     location = models.CharField(max_length=255, blank=True, null=True)
     

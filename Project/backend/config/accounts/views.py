@@ -13,6 +13,8 @@ from django.core.mail import send_mail
 from django.conf import settings
 
 from .models import User, EmailOTP, UserProfile, Skill, Service, PortfolioItem
+from photographers.models import PhotographerProfile
+from customer.models import CustomerProfile
 from .serializers import (
     RegisterSerializer, UserSerializer, EmailOTPSerializer,
     ChangePasswordSerializer, ForgotPasswordSerializer, ResetPasswordSerializer,
@@ -161,6 +163,7 @@ class LoginView(APIView):
             "user": {
                 "id": user.id,
                 "email": user.email,
+                "role": user.role,
                 "is_verified": user.is_verified
             }
         }, status=status.HTTP_200_OK)
@@ -290,6 +293,40 @@ class UserProfileViewSet(viewsets.ModelViewSet):
         serializer.save()
         return Response(serializer.data)
 
+    @action(detail=False, methods=['post'])
+    def set_role(self, request):
+        user = request.user
+        role = request.data.get('role')
+
+        if role not in ['photographer', 'customer']:
+            return Response({
+                "error": "Invalid role. Choose 'photographer' or 'customer'."
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        if user.role != 'unassigned':
+            return Response({
+                "error": f"Role already set to {user.role}. You cannot change it."
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        user.role = role
+        user.save()
+
+        if role == 'photographer':
+            PhotographerProfile.objects.get_or_create(
+                user=user,
+                defaults={'display_name': user.profile.display_name or user.email.split('@')[0]}
+            )
+        elif role == 'customer':
+            CustomerProfile.objects.get_or_create(
+                user=user,
+                defaults={'full_name': user.profile.display_name or user.email.split('@')[0]}
+            )
+
+        return Response({
+            "message": f"Successfully registered as a {role}",
+            "role": role
+        }, status=status.HTTP_200_OK)
+
 class SkillViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = Skill.objects.all()
     serializer_class = SkillSerializer
@@ -298,6 +335,12 @@ class ServiceViewSet(viewsets.ModelViewSet):
     queryset = Service.objects.all()
     serializer_class = ServiceSerializer
     permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        user_id = self.request.query_params.get('user')
+        if user_id:
+            return Service.objects.filter(user_id=user_id)
+        return Service.objects.all()
 
     def perform_create(self, serializer):
         serializer.save(user=self.request.user)

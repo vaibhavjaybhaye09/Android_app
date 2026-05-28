@@ -14,6 +14,7 @@ class AuthProvider extends ChangeNotifier {
   static const String _refreshTokenKey = 'refresh_token';
   static const String _emailKey = 'user_email';
   static const String _roleKey = 'user_role';
+  static const String _idKey = 'user_id';
 
   bool _isLoading = false;
   UserModel? _currentUser;
@@ -25,12 +26,14 @@ class AuthProvider extends ChangeNotifier {
     final token = await _storage.read(key: _accessTokenKey);
     final email = await _storage.read(key: _emailKey);
     final role = await _storage.read(key: _roleKey);
+    final idStr = await _storage.read(key: _idKey);
 
     if (token == null || email == null) {
       return false;
     }
 
     _currentUser = UserModel(
+      id: int.tryParse(idStr ?? '0') ?? 0,
       email: email,
       role: role ?? 'customer',
       accessToken: token,
@@ -127,6 +130,7 @@ class AuthProvider extends ChangeNotifier {
     }
     await _storage.write(key: _emailKey, value: user.email);
     await _storage.write(key: _roleKey, value: user.role);
+    await _storage.write(key: _idKey, value: user.id.toString());
     notifyListeners();
   }
 

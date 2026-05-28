@@ -1,6 +1,7 @@
 class PostModel {
   final int id;
-  final String image;
+  final String file;
+  final String postType;
   final String? caption;
   final String? location;
   final int likesCount;
@@ -12,7 +13,8 @@ class PostModel {
 
   PostModel({
     required this.id,
-    required this.image,
+    required this.file,
+    required this.postType,
     this.caption,
     this.location,
     required this.likesCount,
@@ -26,7 +28,8 @@ class PostModel {
   factory PostModel.fromJson(Map<String, dynamic> json) {
     return PostModel(
       id: json['id'] as int,
-      image: json['image'] as String,
+      file: json['file'] as String? ?? json['image'] as String? ?? '',
+      postType: json['post_type'] as String? ?? 'image',
       caption: json['caption'] as String?,
       location: json['location'] as String?,
       likesCount: json['likes_count'] as int? ?? 0,

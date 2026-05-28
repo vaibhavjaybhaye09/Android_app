@@ -20,6 +20,7 @@ class PhotographerProfileSerializer(serializers.ModelSerializer):
     user_id = serializers.IntegerField(write_only=True, required=False)
     followers_count = serializers.IntegerField(read_only=True)
     following_count = serializers.IntegerField(read_only=True)
+    posts_count = serializers.SerializerMethodField()
     
     class Meta:
         model = PhotographerProfile
@@ -28,11 +29,14 @@ class PhotographerProfileSerializer(serializers.ModelSerializer):
             'city', 'area', 'pincode', 'experience', 'rating',
             'website', 'location', 'phone_number', 'camera_details', 'lenses',
             'is_team', 'team_members_count', 'followers', 'following',
-            'followers_count', 'following_count', 'total_likes_received',
+            'followers_count', 'following_count', 'posts_count', 'total_likes_received',
             'total_views_received', 'is_verified_photographer', 'verification_badge',
             'created_at', 'updated_at'
         )
         read_only_fields = ('id', 'followers', 'following', 'created_at', 'updated_at')
+    
+    def get_posts_count(self, obj):
+        return Post.objects.filter(photographer=obj.user, is_archived=False).count()
     
     def create(self, validated_data):
         user = validated_data.pop('user_id', None)
@@ -52,7 +56,7 @@ class PostSerializer(serializers.ModelSerializer):
     class Meta:
         model = Post
         fields = (
-            'id', 'photographer', 'photographer_id', 'image', 'caption', 'location',
+            'id', 'photographer', 'photographer_id', 'file', 'post_type', 'caption', 'location',
             'photographer_location', 'likes', 'likes_count', 'comments_count', 
             'is_archived', 'is_liked_by_user', 'created_at', 'updated_at'
         )

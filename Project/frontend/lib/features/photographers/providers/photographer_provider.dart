@@ -10,11 +10,13 @@ class PhotographerProvider extends ChangeNotifier {
 
   List<PhotographerModel> _photographers = [];
   List<PostModel> _nearbyFeed = [];
+  List<PostModel> _photographerPosts = [];
   bool _isLoading = false;
   String? _error;
 
   List<PhotographerModel> get photographers => _photographers;
   List<PostModel> get nearbyFeed => _nearbyFeed;
+  List<PostModel> get photographerPosts => _photographerPosts;
   bool get isLoading => _isLoading;
   String? get error => _error;
 
@@ -46,6 +48,34 @@ class PhotographerProvider extends ChangeNotifier {
     } finally {
       _isLoading = false;
       notifyListeners();
+    }
+  }
+
+  Future<void> fetchPhotographerPosts(int id) async {
+    _isLoading = true;
+    _photographerPosts = [];
+    notifyListeners();
+    try {
+      _photographerPosts = await _apiService.getPhotographerPosts(id);
+    } catch (e) {
+      _error = e.toString();
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> toggleLike(int postId) async {
+    try {
+      await _apiService.likePost(postId);
+      // Update local state if needed for immediate feedback
+      final index = _nearbyFeed.indexWhere((p) => p.id == postId);
+      if (index != -1) {
+        // We'd need to copy the model to update it since it's final
+        // For now, re-fetching or optimistic UI is better
+      }
+    } catch (e) {
+      debugPrint("Error liking post: $e");
     }
   }
 }

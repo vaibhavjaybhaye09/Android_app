@@ -12,9 +12,9 @@ class CustomerProfile(models.Model):
     phone_number = models.CharField(max_length=20, blank=True, null=True)
     location = models.CharField(max_length=255, blank=True, null=True)
     saved_addresses = models.JSONField(default=list, blank=True)
-    city = models.CharField(max_length=100)
-    area = models.CharField(max_length=100)
-    pincode = models.CharField(max_length=10)   
+    city = models.CharField(max_length=100, blank=True, null=True)
+    area = models.CharField(max_length=100, blank=True, null=True)
+    pincode = models.CharField(max_length=10, blank=True, null=True)   
     rating = models.FloatField(default=0)
     favorite_photographers = models.ManyToManyField(
         settings.AUTH_USER_MODEL, 

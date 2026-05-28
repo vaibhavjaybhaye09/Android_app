@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../models/photographer_model.dart';
+import '../../../models/post_model.dart';
 import '../../bookings/providers/booking_provider.dart';
+import '../providers/photographer_provider.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-
 import '../../chat/providers/chat_provider.dart';
 import '../../chat/screens/chat_detail_screen.dart';
 
@@ -16,40 +17,21 @@ class PhotographerDetailScreen extends StatefulWidget {
   State<PhotographerDetailScreen> createState() => _PhotographerDetailScreenState();
 }
 
-class _PhotographerDetailScreenState extends State<PhotographerDetailScreen>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _controller;
-  late Animation<double> _fadeAnimation;
-  late Animation<Offset> _slideAnimation;
+class _PhotographerDetailScreenState extends State<PhotographerDetailScreen> with SingleTickerProviderStateMixin {
+  late TabController _tabController;
 
   @override
   void initState() {
     super.initState();
-    _controller = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 800),
-    );
-
-    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(
-        parent: _controller,
-        curve: const Interval(0.4, 1.0, curve: Curves.easeIn),
-      ),
-    );
-
-    _slideAnimation = Tween<Offset>(begin: const Offset(0, 0.1), end: Offset.zero).animate(
-      CurvedAnimation(
-        parent: _controller,
-        curve: const Interval(0.4, 1.0, curve: Curves.easeOutCubic),
-      ),
-    );
-
-    _controller.forward();
+    _tabController = TabController(length: 3, vsync: this);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<PhotographerProvider>().fetchPhotographerPosts(widget.photographer.id);
+    });
   }
 
   @override
   void dispose() {
-    _controller.dispose();
+    _tabController.dispose();
     super.dispose();
   }
 
@@ -57,168 +39,93 @@ class _PhotographerDetailScreenState extends State<PhotographerDetailScreen>
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
-      body: CustomScrollView(
-        slivers: [
-          _buildSliverAppBar(context),
-          SliverToBoxAdapter(
-            child: FadeTransition(
-              opacity: _fadeAnimation,
-              child: SlideTransition(
-                position: _slideAnimation,
-                child: Padding(
-                  padding: const EdgeInsets.all(24.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _buildHeader(context),
-                      const SizedBox(height: 32),
-                      _buildAboutSection(context),
-                      const SizedBox(height: 40),
-                      _buildPortfolioSection(context),
-                      const SizedBox(height: 40),
-                      _buildServicesSection(context),
-                      const SizedBox(height: 120),
-                    ],
-                  ),
-                ),
-              ),
-            ),
+      appBar: AppBar(
+        backgroundColor: Colors.white,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.black),
+          onPressed: () => Navigator.pop(context),
+        ),
+        title: Text(
+          widget.photographer.name,
+          style: const TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
+        ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.more_vert, color: Colors.black),
+            onPressed: () {},
           ),
         ],
       ),
-      bottomSheet: FadeTransition(
-        opacity: _fadeAnimation,
-        child: _buildBottomAction(context),
+      body: NestedScrollView(
+        headerSliverBuilder: (context, innerBoxIsScrolled) {
+          return [
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _buildProfileStatsHeader(),
+                    const SizedBox(height: 16),
+                    _buildBio(),
+                    const SizedBox(height: 16),
+                    _buildActionButtons(),
+                  ],
+                ),
+              ),
+            ),
+            SliverPersistentHeader(
+              pinned: true,
+              delegate: _SliverAppBarDelegate(
+                TabBar(
+                  controller: _tabController,
+                  indicatorColor: Colors.black,
+                  labelColor: Colors.black,
+                  unselectedLabelColor: Colors.grey,
+                  tabs: const [
+                    Tab(icon: Icon(Icons.grid_on_outlined)),
+                    Tab(icon: Icon(Icons.video_library_outlined)),
+                    Tab(icon: Icon(Icons.person_pin_outlined)),
+                  ],
+                ),
+              ),
+            ),
+          ];
+        },
+        body: TabBarView(
+          controller: _tabController,
+          children: [
+            _buildPostsGrid(),
+            _buildVideosGrid(),
+            _buildAboutTab(),
+          ],
+        ),
       ),
+      bottomNavigationBar: _buildBottomBookButton(),
     );
   }
 
-  Widget _buildSliverAppBar(BuildContext context) {
-    return SliverAppBar(
-      expandedHeight: 400,
-      pinned: true,
-      backgroundColor: Colors.white,
-      elevation: 0,
-      flexibleSpace: FlexibleSpaceBar(
-        background: Hero(
-          tag: 'photographer_image_${widget.photographer.id}',
-          child: Stack(
-            fit: StackFit.expand,
-            children: [
-              CachedNetworkImage(
-                imageUrl: (widget.photographer.portfolio.isNotEmpty)
-                    ? widget.photographer.portfolio[0]
-                    : 'https://images.unsplash.com/photo-1542038784456-1ea8e935640e',
-                fit: BoxFit.cover,
-              ),
-              const DecoratedBox(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [
-                      Colors.black38,
-                      Colors.transparent,
-                      Colors.black87,
-                    ],
-                    stops: [0.0, 0.5, 1.0],
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-      leading: IconButton(
-        icon: const Icon(Icons.arrow_back, color: Colors.white),
-        onPressed: () => Navigator.pop(context),
-      ),
-      actions: [
-        IconButton(
-          icon: const Icon(Icons.chat_bubble_outline, color: Colors.white),
-          onPressed: () async {
-            final chatProvider = context.read<ChatProvider>();
-            final conversation = await chatProvider.startConversation(widget.photographer.id);
-            if (conversation != null && context.mounted) {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => ChatDetailScreen(conversation: conversation),
-                ),
-              );
-            }
-          },
-        ),
-        IconButton(
-          icon: const Icon(Icons.share, color: Colors.white),
-          onPressed: () {},
-        ),
-        IconButton(
-          icon: const Icon(Icons.favorite_border, color: Colors.white),
-          onPressed: () {},
-        ),
-      ],
-    );
-  }
-
-  Widget _buildHeader(BuildContext context) {
+  Widget _buildProfileStatsHeader() {
     return Row(
-      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
+        CircleAvatar(
+          radius: 40,
+          backgroundColor: Colors.grey[200],
+          backgroundImage: widget.photographer.profileImage != null
+              ? CachedNetworkImageProvider(widget.photographer.profileImage!)
+              : null,
+          child: widget.photographer.profileImage == null
+              ? const Icon(Icons.person, size: 40, color: Colors.grey)
+              : null,
+        ),
         Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [
-              Text(
-                widget.photographer.name,
-                style: const TextStyle(
-                  fontSize: 32,
-                  fontWeight: FontWeight.w900,
-                  color: Color(0xFF1A1A1A),
-                  letterSpacing: -1,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF0095F6).withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Text(
-                  widget.photographer.specialty,
-                  style: const TextStyle(
-                    fontSize: 14,
-                    color: Color(0xFF0095F6),
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 16),
-              Row(
-                children: [
-                  const Icon(Icons.star, color: Colors.amber, size: 20),
-                  const SizedBox(width: 6),
-                  Text(
-                    widget.photographer.rating.toString(),
-                    style: const TextStyle(
-                      fontWeight: FontWeight.w900,
-                      fontSize: 18,
-                    ),
-                  ),
-                  const SizedBox(width: 20),
-                  const Icon(Icons.location_on, color: Color(0xFF8E8E8E), size: 20),
-                  const SizedBox(width: 6),
-                  const Text(
-                    'New York, NY',
-                    style: TextStyle(
-                      color: Color(0xFF8E8E8E),
-                      fontSize: 15,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ],
-              ),
+              _buildStatItem("Posts", widget.photographer.postsCount.toString()),
+              _buildStatItem("Followers", widget.photographer.followersCount.toString()),
+              _buildStatItem("Following", widget.photographer.followingCount.toString()),
             ],
           ),
         ),
@@ -226,119 +133,162 @@ class _PhotographerDetailScreenState extends State<PhotographerDetailScreen>
     );
   }
 
-  Widget _buildAboutSection(BuildContext context) {
+  Widget _buildStatItem(String label, String count) {
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          'Biography',
-          style: TextStyle(
-            fontSize: 22,
-            fontWeight: FontWeight.w900,
-            color: Color(0xFF1A1A1A),
-            letterSpacing: -0.5,
-          ),
-        ),
-        const SizedBox(height: 16),
-        Text(
-          widget.photographer.bio ??
-              'Professional photographer with over 5 years of experience capturing moments that last a lifetime.',
-          style: TextStyle(
-            fontSize: 16,
-            color: Colors.grey[700],
-            height: 1.6,
-            fontWeight: FontWeight.w400,
-          ),
-        ),
+        Text(count, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+        Text(label, style: const TextStyle(fontSize: 14, color: Colors.grey)),
       ],
     );
   }
 
-  Widget _buildPortfolioSection(BuildContext context) {
+  Widget _buildBio() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            const Text(
-              'Portfolio',
-              style: TextStyle(
-                fontSize: 22,
-                fontWeight: FontWeight.w900,
-                color: Color(0xFF1A1A1A),
-                letterSpacing: -0.5,
-              ),
+            Text(
+              widget.photographer.name,
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
             ),
-            TextButton(
-              onPressed: () {},
-              child: const Text(
-                'View All',
-                style: TextStyle(fontWeight: FontWeight.bold),
-              ),
-            ),
+            if (widget.photographer.isVerified)
+              const Icon(Icons.verified, color: Colors.blue, size: 16),
           ],
         ),
-        const SizedBox(height: 16),
-        if (widget.photographer.portfolio.isEmpty)
-          const Text('No portfolio images available.')
-        else
-          GridView.builder(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 2,
-              crossAxisSpacing: 12,
-              mainAxisSpacing: 12,
-              childAspectRatio: 0.8,
+        Text(
+          widget.photographer.specialty,
+          style: TextStyle(color: Colors.grey[600], fontSize: 14),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          widget.photographer.bio ?? "Capturing the beauty of every moment. Available for bookings worldwide.",
+          style: const TextStyle(fontSize: 14),
+        ),
+        if (widget.photographer.location != null)
+          Padding(
+            padding: const EdgeInsets.only(top: 4.0),
+            child: Row(
+              children: [
+                const Icon(Icons.location_on_outlined, size: 14, color: Colors.grey),
+                const SizedBox(width: 4),
+                Text(widget.photographer.location!, style: const TextStyle(color: Colors.blue, fontSize: 14)),
+              ],
             ),
-            itemCount: widget.photographer.portfolio.length.clamp(0, 4),
-            itemBuilder: (context, index) {
-              return ClipRRect(
-                borderRadius: BorderRadius.circular(20),
-                child: CachedNetworkImage(
-                  imageUrl: widget.photographer.portfolio[index],
-                  fit: BoxFit.cover,
-                ),
-              );
-            },
           ),
       ],
     );
   }
 
-  Widget _buildServicesSection(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+  Widget _buildActionButtons() {
+    return Row(
       children: [
-        const Text(
-          'Services',
-          style: TextStyle(
-            fontSize: 22,
-            fontWeight: FontWeight.w900,
-            color: Color(0xFF1A1A1A),
-            letterSpacing: -0.5,
+        Expanded(
+          child: ElevatedButton(
+            onPressed: () {},
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF0095F6),
+              foregroundColor: Colors.white,
+              elevation: 0,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+            child: const Text("Follow", style: TextStyle(fontWeight: FontWeight.bold)),
           ),
         ),
-        const SizedBox(height: 20),
-        _buildServiceItem('Full Day Session', '8 hours of premium coverage',
-            '\$${widget.photographer.hourlyRate * 8}'),
-        _buildServiceItem('Half Day Session', '4 hours of premium coverage',
-            '\$${widget.photographer.hourlyRate * 4}'),
-        _buildServiceItem('Signature Hourly', 'Min. 2 hours, custom editing',
-            '\$${widget.photographer.hourlyRate}/hr'),
+        const SizedBox(width: 8),
+        Expanded(
+          child: OutlinedButton(
+            onPressed: () async {
+              final chatProvider = context.read<ChatProvider>();
+              final conversation = await chatProvider.startConversation(widget.photographer.id);
+              if (conversation != null && mounted) {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => ChatDetailScreen(conversation: conversation)),
+                );
+              }
+            },
+            style: OutlinedButton.styleFrom(
+              side: const BorderSide(color: Color(0xFFDBDBDB)),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+            child: const Text("Message", style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
+          ),
+        ),
       ],
+    );
+  }
+
+  Widget _buildPostsGrid() {
+    return Consumer<PhotographerProvider>(
+      builder: (context, provider, child) {
+        if (provider.isLoading) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        if (provider.photographerPosts.isEmpty) {
+          return const Center(child: Text("No posts yet"));
+        }
+        return GridView.builder(
+          padding: const EdgeInsets.all(2),
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 3,
+            crossAxisSpacing: 2,
+            mainAxisSpacing: 2,
+          ),
+          itemCount: provider.photographerPosts.length,
+          itemBuilder: (context, index) {
+            final post = provider.photographerPosts[index];
+            return InkWell(
+              onTap: () => _showPostDetail(post),
+              child: CachedNetworkImage(
+                imageUrl: post.file,
+                fit: BoxFit.cover,
+                placeholder: (context, url) => Container(color: Colors.grey[200]),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildVideosGrid() {
+    return const Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.video_library_outlined, size: 64, color: Colors.grey),
+          SizedBox(height: 16),
+          Text("No Reels Yet", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAboutTab() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text("Services & Pricing", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+          const SizedBox(height: 12),
+          _buildServiceItem("Wedding Package", "Full day coverage, 500+ edits", "\$1500"),
+          _buildServiceItem("Portrait Session", "2 hours, 20 high-res edits", "\$250"),
+          _buildServiceItem("Event Photography", "Hourly rate with digital delivery", "\$125/hr"),
+        ],
+      ),
     );
   }
 
   Widget _buildServiceItem(String title, String desc, String price) {
     return Container(
-      margin: const EdgeInsets.only(bottom: 16),
-      padding: const EdgeInsets.all(20),
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: const Color(0xFFF8F9FA),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0xFFF0F0F0)),
+        color: Colors.grey[50],
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey[200]!),
       ),
       child: Row(
         children: [
@@ -346,106 +296,104 @@ class _PhotographerDetailScreenState extends State<PhotographerDetailScreen>
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  title,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w800,
-                    fontSize: 17,
-                    color: Color(0xFF1A1A1A),
-                  ),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  desc,
-                  style: TextStyle(
-                    color: Colors.grey[600],
-                    fontSize: 14,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
+                Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                Text(desc, style: TextStyle(color: Colors.grey[600], fontSize: 14)),
               ],
             ),
           ),
-          Text(
-            price,
-            style: const TextStyle(
-              fontWeight: FontWeight.w900,
-              fontSize: 18,
-              color: Color(0xFF0095F6),
-            ),
-          ),
+          Text(price, style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.blue)),
         ],
       ),
     );
   }
 
-  Widget _buildBottomAction(BuildContext context) {
+  Widget _buildBottomBookButton() {
     return Container(
-      padding: const EdgeInsets.fromLTRB(24, 20, 24, 40),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.08),
-            blurRadius: 30,
-            offset: const Offset(0, -10),
-          ),
-        ],
+        border: Border(top: BorderSide(color: Colors.grey[200]!)),
       ),
-      child: Row(
-        children: [
-          Expanded(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'TOTAL RATE',
-                  style: TextStyle(
-                    color: Color(0xFF8E8E8E),
-                    fontSize: 11,
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: 1.2,
-                  ),
+      child: ElevatedButton(
+        onPressed: () => _showBookingSheet(context),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: Colors.black,
+          padding: const EdgeInsets.symmetric(vertical: 16),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ),
+        child: const Text("Book Now", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+      ),
+    );
+  }
+
+  void _showPostDetail(PostModel post) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (context) => DraggableScrollableSheet(
+        initialChildSize: 0.9,
+        maxChildSize: 0.95,
+        minChildSize: 0.5,
+        expand: false,
+        builder: (context, scrollController) => SingleChildScrollView(
+          controller: scrollController,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              ListTile(
+                leading: CircleAvatar(
+                  backgroundImage: widget.photographer.profileImage != null
+                      ? CachedNetworkImageProvider(widget.photographer.profileImage!)
+                      : null,
                 ),
-                Text(
-                  '\$${widget.photographer.hourlyRate}',
-                  style: const TextStyle(
-                    fontSize: 28,
-                    fontWeight: FontWeight.w900,
-                    color: Color(0xFF1A1A1A),
-                    letterSpacing: -0.5,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 24),
-          Expanded(
-            flex: 2,
-            child: ElevatedButton(
-              onPressed: () => _showBookingSheet(context),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF0095F6),
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: 18),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                elevation: 10,
-                shadowColor: const Color(0xFF0095F6).withOpacity(0.4),
+                title: Text(widget.photographer.name, style: const TextStyle(fontWeight: FontWeight.bold)),
+                subtitle: Text(post.location ?? "New York"),
+                trailing: const Icon(Icons.more_horiz),
               ),
-              child: const Text(
-                'Reserve Now',
-                style: TextStyle(
-                  fontSize: 17,
-                  fontWeight: FontWeight.w900,
-                  letterSpacing: 0.5,
+              CachedNetworkImage(
+                imageUrl: post.file,
+                width: double.infinity,
+                fit: BoxFit.cover,
+              ),
+              Padding(
+                padding: const EdgeInsets.all(12.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        IconButton(
+                          icon: Icon(post.isLikedByUser ? Icons.favorite : Icons.favorite_border,
+                              color: post.isLikedByUser ? Colors.red : Colors.black),
+                          onPressed: () => context.read<PhotographerProvider>().toggleLike(post.id),
+                        ),
+                        IconButton(icon: const Icon(Icons.chat_bubble_outline), onPressed: () {}),
+                        IconButton(icon: const Icon(Icons.send_outlined), onPressed: () {}),
+                        const Spacer(),
+                        const Icon(Icons.bookmark_border),
+                      ],
+                    ),
+                    Text("${post.likesCount} likes", style: const TextStyle(fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 4),
+                    RichText(
+                      text: TextSpan(
+                        style: const TextStyle(color: Colors.black),
+                        children: [
+                          TextSpan(text: "${widget.photographer.name} ", style: const TextStyle(fontWeight: FontWeight.bold)),
+                          TextSpan(text: post.caption ?? ""),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text("View all ${post.commentsCount} comments", style: const TextStyle(color: Colors.grey)),
+                  ],
                 ),
               ),
-            ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }
@@ -457,6 +405,30 @@ class _PhotographerDetailScreenState extends State<PhotographerDetailScreen>
       backgroundColor: Colors.transparent,
       builder: (context) => _BookingSheet(photographer: widget.photographer),
     );
+  }
+}
+
+class _SliverAppBarDelegate extends SliverPersistentHeaderDelegate {
+  _SliverAppBarDelegate(this._tabBar);
+
+  final TabBar _tabBar;
+
+  @override
+  double get minExtent => _tabBar.preferredSize.height;
+  @override
+  double get maxExtent => _tabBar.preferredSize.height;
+
+  @override
+  Widget build(BuildContext context, double shrinkOffset, bool overlapsContent) {
+    return Container(
+      color: Colors.white,
+      child: _tabBar,
+    );
+  }
+
+  @override
+  bool shouldRebuild(_SliverAppBarDelegate oldDelegate) {
+    return false;
   }
 }
 
@@ -494,24 +466,12 @@ class _BookingSheetState extends State<_BookingSheet> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text(
-                'Book Session',
-                style: TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              IconButton(
-                onPressed: () => Navigator.pop(context),
-                icon: const Icon(Icons.close),
-              ),
+              const Text('Book Session', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+              IconButton(onPressed: () => Navigator.pop(context), icon: const Icon(Icons.close)),
             ],
           ),
           const SizedBox(height: 24),
-          const Text(
-            'Select Date',
-            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-          ),
+          const Text('Select Date', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
           const SizedBox(height: 12),
           InkWell(
             onTap: () async {
@@ -521,9 +481,7 @@ class _BookingSheetState extends State<_BookingSheet> {
                 firstDate: DateTime.now(),
                 lastDate: DateTime.now().add(const Duration(days: 365)),
               );
-              if (date != null) {
-                setState(() => _selectedDate = date);
-              }
+              if (date != null) setState(() => _selectedDate = date);
             },
             child: Container(
               padding: const EdgeInsets.all(16),
@@ -536,23 +494,15 @@ class _BookingSheetState extends State<_BookingSheet> {
                   const Icon(Icons.calendar_today, size: 20, color: Color(0xFF0095F6)),
                   const SizedBox(width: 12),
                   Text(
-                    _selectedDate == null
-                        ? 'Choose a date'
-                        : '${_selectedDate!.day}/${_selectedDate!.month}/${_selectedDate!.year}',
-                    style: TextStyle(
-                      color: _selectedDate == null ? Colors.grey[600] : Colors.black,
-                      fontSize: 16,
-                    ),
+                    _selectedDate == null ? 'Choose a date' : '${_selectedDate!.day}/${_selectedDate!.month}/${_selectedDate!.year}',
+                    style: TextStyle(color: _selectedDate == null ? Colors.grey[600] : Colors.black, fontSize: 16),
                   ),
                 ],
               ),
             ),
           ),
           const SizedBox(height: 24),
-          const Text(
-            'Notes (Optional)',
-            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-          ),
+          const Text('Notes (Optional)', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
           const SizedBox(height: 12),
           TextField(
             controller: _notesController,
@@ -574,16 +524,11 @@ class _BookingSheetState extends State<_BookingSheet> {
                 backgroundColor: const Color(0xFF0095F6),
                 foregroundColor: Colors.white,
                 padding: const EdgeInsets.symmetric(vertical: 16),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
               ),
               child: _isLoading
                   ? const CircularProgressIndicator(color: Colors.white)
-                  : const Text(
-                      'Confirm Booking',
-                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                    ),
+                  : const Text('Confirm Booking', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
             ),
           ),
         ],
@@ -593,9 +538,7 @@ class _BookingSheetState extends State<_BookingSheet> {
 
   Future<void> _handleBooking() async {
     if (_selectedDate == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please select a date')),
-      );
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please select a date')));
       return;
     }
 
@@ -612,9 +555,7 @@ class _BookingSheetState extends State<_BookingSheet> {
       Navigator.pop(context);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(success
-              ? 'Booking request sent successfully!'
-              : 'Failed to create booking. Please try again.'),
+          content: Text(success ? 'Booking request sent successfully!' : 'Failed to create booking. Please try again.'),
           backgroundColor: success ? Colors.green : Colors.red,
         ),
       );
