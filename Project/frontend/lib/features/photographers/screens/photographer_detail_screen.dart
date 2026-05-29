@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../models/photographer_model.dart';
 import '../../../models/post_model.dart';
+import '../../../models/service_model.dart';
+import '../../../models/portfolio_item_model.dart';
 import '../../bookings/providers/booking_provider.dart';
 import '../providers/photographer_provider.dart';
 import 'package:cached_network_image/cached_network_image.dart';
@@ -225,7 +227,8 @@ class _PhotographerDetailScreenState extends State<PhotographerDetailScreen> wit
         if (provider.isLoading) {
           return const Center(child: CircularProgressIndicator());
         }
-        if (provider.photographerPosts.isEmpty) {
+        final images = provider.photographerPosts.where((p) => p.postType == 'image').toList();
+        if (images.isEmpty) {
           return const Center(child: Text("No posts yet"));
         }
         return GridView.builder(
@@ -235,9 +238,9 @@ class _PhotographerDetailScreenState extends State<PhotographerDetailScreen> wit
             crossAxisSpacing: 2,
             mainAxisSpacing: 2,
           ),
-          itemCount: provider.photographerPosts.length,
+          itemCount: images.length,
           itemBuilder: (context, index) {
-            final post = provider.photographerPosts[index];
+            final post = images[index];
             return InkWell(
               onTap: () => _showPostDetail(post),
               child: CachedNetworkImage(
@@ -253,31 +256,118 @@ class _PhotographerDetailScreenState extends State<PhotographerDetailScreen> wit
   }
 
   Widget _buildVideosGrid() {
-    return const Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.video_library_outlined, size: 64, color: Colors.grey),
-          SizedBox(height: 16),
-          Text("No Reels Yet", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-        ],
-      ),
+    return Consumer<PhotographerProvider>(
+      builder: (context, provider, child) {
+        if (provider.isLoading) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        final videos = provider.photographerPosts.where((p) => p.postType == 'video').toList();
+        if (videos.isEmpty) {
+          return const Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.video_library_outlined, size: 64, color: Colors.grey),
+                SizedBox(height: 16),
+                Text("No Reels Yet", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              ],
+            ),
+          );
+        }
+        return GridView.builder(
+          padding: const EdgeInsets.all(2),
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 3,
+            crossAxisSpacing: 2,
+            mainAxisSpacing: 2,
+            childAspectRatio: 0.6,
+          ),
+          itemCount: videos.length,
+          itemBuilder: (context, index) {
+            final post = videos[index];
+            return InkWell(
+              onTap: () => _showPostDetail(post),
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  CachedNetworkImage(
+                    imageUrl: post.file,
+                    fit: BoxFit.cover,
+                    placeholder: (context, url) => Container(color: Colors.grey[200]),
+                  ),
+                  const Positioned(
+                    top: 8,
+                    right: 8,
+                    child: Icon(Icons.play_circle_outline, color: Colors.white, size: 24),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
     );
   }
 
   Widget _buildAboutTab() {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text("Services & Pricing", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-          const SizedBox(height: 12),
-          _buildServiceItem("Wedding Package", "Full day coverage, 500+ edits", "\$1500"),
-          _buildServiceItem("Portrait Session", "2 hours, 20 high-res edits", "\$250"),
-          _buildServiceItem("Event Photography", "Hourly rate with digital delivery", "\$125/hr"),
-        ],
-      ),
+    return Consumer<PhotographerProvider>(
+      builder: (context, provider, child) {
+        // Since we don't have a specific fetch for these in provider yet, 
+        // we might rely on the photographer details or wait for provider update.
+        // For now, let's assume we can fetch them or they are in the model.
+        
+        return SingleChildScrollView(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text("Services & Pricing", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 12),
+              if (provider.photographerServices.isEmpty)
+                const Text("No services listed yet.", style: TextStyle(color: Colors.grey))
+              else
+                ...provider.photographerServices.map((s) => _buildServiceItem(s.title, s.description, "\$${s.price}")),
+              
+              const SizedBox(height: 24),
+              const Text("Portfolio Items", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 12),
+              if (provider.photographerPortfolio.isEmpty)
+                const Text("No portfolio items listed yet.", style: TextStyle(color: Colors.grey))
+              else
+                GridView.builder(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 2,
+                    crossAxisSpacing: 10,
+                    mainAxisSpacing: 10,
+                  ),
+                  itemCount: provider.photographerPortfolio.length,
+                  itemBuilder: (context, index) {
+                    final item = provider.photographerPortfolio[index];
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(8),
+                            child: CachedNetworkImage(
+                              imageUrl: item.image ?? '',
+                              fit: BoxFit.cover,
+                              errorWidget: (context, url, error) => Container(color: Colors.grey[200], child: const Icon(Icons.image)),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(item.title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12), maxLines: 1, overflow: TextOverflow.ellipsis),
+                      ],
+                    );
+                  },
+                ),
+            ],
+          ),
+        );
+      },
     );
   }
 

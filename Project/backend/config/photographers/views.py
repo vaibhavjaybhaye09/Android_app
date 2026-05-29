@@ -18,7 +18,12 @@ from accounts.permissions import IsPhotographer, IsVerified
 class PhotographerProfileViewSet(viewsets.ModelViewSet):
     queryset = PhotographerProfile.objects.all()
     serializer_class = PhotographerProfileSerializer
-    permission_classes = [permissions.IsAuthenticated, IsVerified]
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def get_permissions(self):
+        if self.action in ['follow', 'update', 'partial_update']:
+            return [permissions.IsAuthenticated(), IsVerified()]
+        return [permissions.IsAuthenticated()]
     
     def get_queryset(self):
         queryset = PhotographerProfile.objects.all()
@@ -92,7 +97,14 @@ from customer.models import CustomerProfile
 class PostViewSet(viewsets.ModelViewSet):
     queryset = Post.objects.all()
     serializer_class = PostSerializer
-    permission_classes = [permissions.IsAuthenticated, IsVerified]
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_permissions(self):
+        if self.action in ['create', 'update', 'partial_update', 'destroy', 'archive']:
+            return [permissions.IsAuthenticated(), IsVerified(), IsPhotographer()]
+        if self.action in ['like']:
+            return [permissions.IsAuthenticated(), IsVerified()]
+        return [permissions.IsAuthenticated()]
     
     def get_queryset(self):
         queryset = Post.objects.filter(is_archived=False)
@@ -134,15 +146,17 @@ class PostViewSet(viewsets.ModelViewSet):
                 pass
 
         if not city:
-            return Response({
-                "error": "Profile location details (city, area, pincode) are required for nearby feed."
-            }, status=status.HTTP_400_BAD_REQUEST)
+            # Strictly return empty if user has no location set
+            return Response([], status=status.HTTP_200_OK)
 
         # Base queryset: Posts from photographers in the same city
         queryset = Post.objects.filter(
             is_archived=False,
             photographer__photographer_profile__city=city
         ).distinct()
+
+        if not queryset.exists():
+            return Response([], status=status.HTTP_200_OK)
 
         # Rank based on location proximity
         queryset = queryset.annotate(
@@ -153,7 +167,7 @@ class PostViewSet(viewsets.ModelViewSet):
                     Q(photographer__photographer_profile__pincode=pincode),
                     then=Value(1)
                 ),
-                # Priority 2: Same City (already filtered, but we can give it a lower priority weight)
+                # Priority 2: Same City (already filtered)
                 default=Value(2),
                 output_field=IntegerField(),
             )
@@ -216,7 +230,12 @@ class PostViewSet(viewsets.ModelViewSet):
 class CommentViewSet(viewsets.ModelViewSet):
     queryset = Comment.objects.all()
     serializer_class = CommentSerializer
-    permission_classes = [permissions.IsAuthenticated, IsVerified]
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def get_permissions(self):
+        if self.action in ['create', 'update', 'partial_update', 'destroy']:
+            return [permissions.IsAuthenticated(), IsVerified()]
+        return [permissions.IsAuthenticated()]
     
     def get_queryset(self):
         post_id = self.request.query_params.get('post')
@@ -243,7 +262,7 @@ class CommentViewSet(viewsets.ModelViewSet):
 
 class NotificationViewSet(viewsets.ModelViewSet):
     serializer_class = NotificationSerializer
-    permission_classes = [permissions.IsAuthenticated, IsVerified]
+    permission_classes = [permissions.IsAuthenticated]
     
     def get_queryset(self):
         return Notification.objects.filter(user=self.request.user)
@@ -268,7 +287,12 @@ class NotificationViewSet(viewsets.ModelViewSet):
 class PortfolioViewSet(viewsets.ModelViewSet):
     queryset = Portfolio.objects.all()
     serializer_class = PortfolioSerializer
-    permission_classes = [permissions.IsAuthenticated, IsVerified]
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_permissions(self):
+        if self.action in ['create', 'update', 'partial_update', 'destroy']:
+            return [permissions.IsAuthenticated(), IsVerified(), IsPhotographer()]
+        return [permissions.IsAuthenticated()]
     
     def get_queryset(self):
         if self.request.user.is_staff:
@@ -288,7 +312,7 @@ class PortfolioViewSet(viewsets.ModelViewSet):
 class CategoryViewSet(viewsets.ModelViewSet):
     queryset = Category.objects.all()
     serializer_class = CategorySerializer
-    permission_classes = [permissions.IsAuthenticated, IsVerified]
+    permission_classes = [permissions.IsAuthenticated]
     
     def get_permissions(self):
         if self.action in ['create', 'update', 'delete']:
@@ -299,7 +323,12 @@ class CategoryViewSet(viewsets.ModelViewSet):
 class StoryViewSet(viewsets.ModelViewSet):
     queryset = Story.objects.all()
     serializer_class = StorySerializer
-    permission_classes = [permissions.IsAuthenticated, IsVerified]
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_permissions(self):
+        if self.action in ['create', 'update', 'partial_update', 'destroy']:
+            return [permissions.IsAuthenticated(), IsVerified(), IsPhotographer()]
+        return [permissions.IsAuthenticated()]
     
     def get_queryset(self):
         photographer_id = self.request.query_params.get('photographer')
@@ -323,7 +352,12 @@ class StoryViewSet(viewsets.ModelViewSet):
 
 class ConversationViewSet(viewsets.ModelViewSet):
     serializer_class = ConversationSerializer
-    permission_classes = [permissions.IsAuthenticated, IsVerified]
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def get_permissions(self):
+        if self.action in ['create']:
+            return [permissions.IsAuthenticated(), IsVerified()]
+        return [permissions.IsAuthenticated()]
     
     def get_queryset(self):
         return Conversation.objects.filter(participants=self.request.user)
@@ -345,10 +379,14 @@ class ConversationViewSet(viewsets.ModelViewSet):
         serializer = self.get_serializer(conversation)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
-
 class MessageViewSet(viewsets.ModelViewSet):
     serializer_class = MessageSerializer
-    permission_classes = [permissions.IsAuthenticated, IsVerified]
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def get_permissions(self):
+        if self.action in ['create']:
+            return [permissions.IsAuthenticated(), IsVerified()]
+        return [permissions.IsAuthenticated()]
     
     def get_queryset(self):
         conversation_id = self.request.query_params.get('conversation')

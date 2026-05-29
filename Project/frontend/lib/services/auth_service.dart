@@ -41,7 +41,6 @@ class AuthService {
     required String email,
     required String password,
     required String confirmPassword,
-    required String role,
   }) async {
     try {
       final response = await _dioClient.dio.post(
@@ -50,11 +49,24 @@ class AuthService {
           'email': email,
           'password': password,
           'confirm_password': confirmPassword,
-          'role': role,
         },
       );
 
       return response.data['message']?.toString() ?? 'OTP sent to email';
+    } on DioException catch (error) {
+      throw AuthException(_extractMessage(error));
+    }
+  }
+
+  Future<String> setRole({
+    required String role,
+  }) async {
+    try {
+      final response = await _dioClient.dio.post(
+        '/api/auth/profile/set_role/',
+        data: {'role': role},
+      );
+      return response.data['message']?.toString() ?? 'Role set successfully';
     } on DioException catch (error) {
       throw AuthException(_extractMessage(error));
     }

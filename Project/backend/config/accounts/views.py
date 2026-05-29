@@ -1,13 +1,11 @@
 import random
 import string
-from django.utils.decorators import method_decorator
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status, permissions, viewsets
 from rest_framework.decorators import action
 from django.contrib.auth import authenticate
 from django.utils import timezone
-from django.views.decorators.csrf import csrf_exempt
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.core.mail import send_mail
 from django.conf import settings
@@ -51,7 +49,6 @@ def send_otp_email(email, otp, is_password_reset=False):
     )
 
 
-@method_decorator(csrf_exempt, name='dispatch')
 class RegisterView(APIView):
     permission_classes = [permissions.AllowAny]
     
@@ -78,7 +75,6 @@ class RegisterView(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
-@method_decorator(csrf_exempt, name='dispatch')
 class VerifyOTPView(APIView):
     permission_classes = [permissions.AllowAny]
     
@@ -113,7 +109,7 @@ class VerifyOTPView(APIView):
             }, status=status.HTTP_400_BAD_REQUEST)
         
         # Check OTP expiry (10 minutes)
-        if (timezone.now() - otp_obj.created_at).seconds > 600:
+        if (timezone.now() - otp_obj.created_at).total_seconds() > 600:
             return Response({
                 "error": "OTP has expired"
             }, status=status.HTTP_400_BAD_REQUEST)
@@ -130,7 +126,6 @@ class VerifyOTPView(APIView):
         }, status=status.HTTP_200_OK)
 
 
-@method_decorator(csrf_exempt, name='dispatch')
 class LoginView(APIView):
     permission_classes = [permissions.AllowAny]
     
@@ -169,7 +164,6 @@ class LoginView(APIView):
         }, status=status.HTTP_200_OK)
 
 
-@method_decorator(csrf_exempt, name='dispatch')
 class ResendOTPView(APIView):
     permission_classes = [permissions.AllowAny]
     
@@ -218,7 +212,6 @@ class ChangePasswordView(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
-@method_decorator(csrf_exempt, name='dispatch')
 class ForgotPasswordView(APIView):
     permission_classes = [permissions.AllowAny]
     
@@ -236,7 +229,6 @@ class ForgotPasswordView(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
-@method_decorator(csrf_exempt, name='dispatch')
 class ResetPasswordView(APIView):
     permission_classes = [permissions.AllowAny]
     
@@ -336,6 +328,12 @@ class ServiceViewSet(viewsets.ModelViewSet):
     serializer_class = ServiceSerializer
     permission_classes = [permissions.IsAuthenticated]
 
+    def get_permissions(self):
+        from .permissions import IsPhotographer, IsVerified
+        if self.action in ['create', 'update', 'partial_update', 'destroy']:
+            return [permissions.IsAuthenticated(), IsVerified(), IsPhotographer()]
+        return [permissions.IsAuthenticated()]
+
     def get_queryset(self):
         user_id = self.request.query_params.get('user')
         if user_id:
@@ -349,6 +347,18 @@ class PortfolioItemViewSet(viewsets.ModelViewSet):
     queryset = PortfolioItem.objects.all()
     serializer_class = PortfolioItemSerializer
     permission_classes = [permissions.IsAuthenticated]
+
+    def get_permissions(self):
+        from .permissions import IsPhotographer, IsVerified
+        if self.action in ['create', 'update', 'partial_update', 'destroy']:
+            return [permissions.IsAuthenticated(), IsVerified(), IsPhotographer()]
+        return [permissions.IsAuthenticated()]
+
+    def get_queryset(self):
+        user_id = self.request.query_params.get('user')
+        if user_id:
+            return PortfolioItem.objects.filter(user_id=user_id)
+        return PortfolioItem.objects.all()
 
     def perform_create(self, serializer):
         serializer.save(user=self.request.user)

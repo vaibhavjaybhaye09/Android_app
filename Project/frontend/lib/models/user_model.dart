@@ -21,7 +21,7 @@ class UserModel {
     return UserModel(
       id: userData?['id'] ?? 0,
       email: email,
-      role: (json['role'] ?? 'customer').toString(),
+      role: (userData?['role'] ?? 'unassigned').toString(),
       accessToken: json['access']?.toString(),
       refreshToken: json['refresh']?.toString(),
     );

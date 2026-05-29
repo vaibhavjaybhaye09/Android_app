@@ -17,7 +17,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
-  String _selectedRole = 'customer';
 
   @override
   void dispose() {
@@ -40,7 +39,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
         email: email,
         password: _passwordController.text,
         confirmPassword: _confirmPasswordController.text,
-        role: _selectedRole,
       );
 
       if (!mounted) {
@@ -158,49 +156,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     return null;
                   },
                 ),
-                const SizedBox(height: 16),
-                DropdownButtonFormField<String>(
-                  initialValue: _selectedRole,
-                  items: const [
-                    DropdownMenuItem(
-                      value: 'customer',
-                      child: Text('I am a Customer'),
-                    ),
-                    DropdownMenuItem(
-                      value: 'photographer',
-                      child: Text('I am a Photographer'),
-                    ),
-                  ],
-                  decoration: InputDecoration(
-                    filled: true,
-                    fillColor: const Color(0xFFF8F9FA),
-                    prefixIcon: const Icon(Icons.person_outline, size: 20, color: Color(0xFF8E8E8E)),
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: Color(0xFFF0F0F0)),
-                    ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: Color(0xFFF0F0F0)),
-                    ),
-                  ),
-                  onChanged: (value) {
-                    setState(() {
-                      _selectedRole = value ?? 'customer';
-                    });
-                  },
-                ),
-                const SizedBox(height: 18),
-                const Text(
-                  'We will send a one-time verification code to your email after signup.',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    color: Color(0xFF8E8E8E),
-                    fontSize: 12,
-                  ),
-                ),
-                const SizedBox(height: 18),
+                const SizedBox(height: 24),
                 AuthPrimaryButton(
                   label: 'Sign up',
                   isLoading: authProvider.isLoading,

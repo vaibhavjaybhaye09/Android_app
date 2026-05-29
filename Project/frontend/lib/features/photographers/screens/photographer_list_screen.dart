@@ -30,6 +30,8 @@ class _PhotographerListScreenState extends State<PhotographerListScreen> with Si
     'Nature'
   ];
   String _selectedCategory = 'All';
+  String _searchQuery = '';
+  final TextEditingController _searchController = TextEditingController();
 
   @override
   void initState() {
@@ -44,7 +46,14 @@ class _PhotographerListScreenState extends State<PhotographerListScreen> with Si
   @override
   void dispose() {
     _tabController.dispose();
+    _searchController.dispose();
     super.dispose();
+  }
+
+  void _onSearchChanged(String value) {
+    setState(() {
+      _searchQuery = value;
+    });
   }
 
   @override
@@ -90,7 +99,14 @@ class _PhotographerListScreenState extends State<PhotographerListScreen> with Si
               actions: [
                 IconButton(
                   icon: const Icon(Icons.search_rounded, color: Color(0xFF1A1A1A)),
-                  onPressed: () {},
+                  onPressed: () {
+                    showModalBottomSheet(
+                      context: context,
+                      isScrollControlled: true,
+                      backgroundColor: Colors.transparent,
+                      builder: (context) => _buildSearchSheet(),
+                    );
+                  },
                 ),
               ],
             ),
@@ -102,6 +118,42 @@ class _PhotographerListScreenState extends State<PhotographerListScreen> with Si
         children: [
           _buildExploreTab(),
           _buildNearbyFeedTab(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSearchSheet() {
+    return Container(
+      height: MediaQuery.of(context).size.height * 0.8,
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              const Text('Search Photographers', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+              const Spacer(),
+              IconButton(onPressed: () => Navigator.pop(context), icon: const Icon(Icons.close)),
+            ],
+          ),
+          const SizedBox(height: 16),
+          TextField(
+            controller: _searchController,
+            decoration: InputDecoration(
+              hintText: 'Search by name, specialty, or location',
+              prefixIcon: const Icon(Icons.search),
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+              filled: true,
+              fillColor: Colors.grey[100],
+            ),
+            onChanged: _onSearchChanged,
+          ),
+          const SizedBox(height: 20),
+          const Text('Search with the improved filtering soon!', style: TextStyle(color: Colors.grey)),
         ],
       ),
     );
@@ -156,29 +208,42 @@ class _PhotographerListScreenState extends State<PhotographerListScreen> with Si
 
         if (provider.nearbyFeed.isEmpty) {
           return Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Lottie.network(
-                  'https://assets9.lottiefiles.com/packages/lf20_v76p8r8m.json',
-                  height: 200,
-                  repeat: true,
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  'No nearby posts yet',
-                  style: TextStyle(
-                    color: Colors.grey[800],
-                    fontSize: 18,
-                    fontWeight: FontWeight.w800,
+            child: Padding(
+              padding: const EdgeInsets.all(32.0),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Lottie.network(
+                    'https://assets9.lottiefiles.com/packages/lf20_v76p8r8m.json',
+                    height: 200,
+                    repeat: true,
                   ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Be the first to share your work!',
-                  style: TextStyle(color: Colors.grey[600]),
-                ),
-              ],
+                  const SizedBox(height: 16),
+                  const Text(
+                    'No nearby posts found',
+                    style: TextStyle(
+                      color: Color(0xFF1A1A1A),
+                      fontSize: 20,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    'Try updating your city and pincode in your profile to find photographers in your area.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: Colors.grey[600], fontSize: 15),
+                  ),
+                  const SizedBox(height: 24),
+                  ElevatedButton(
+                    onPressed: () => Navigator.pushNamed(context, '/profile'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF1A1A1A),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                    child: const Text('Update Profile', style: TextStyle(color: Colors.white)),
+                  ),
+                ],
+              ),
             ),
           );
         }
@@ -268,18 +333,33 @@ class _PhotographerListScreenState extends State<PhotographerListScreen> with Si
           );
         }
 
+        final filteredPhotographers = provider.photographers.where((p) {
+          final matchesCategory = _selectedCategory == 'All' || 
+              p.specialty.toLowerCase().contains(_selectedCategory.toLowerCase());
+          final matchesSearch = _searchQuery.isEmpty || 
+              p.name.toLowerCase().contains(_searchQuery.toLowerCase()) ||
+              p.specialty.toLowerCase().contains(_searchQuery.toLowerCase());
+          return matchesCategory && matchesSearch;
+        }).toList();
+
+        if (filteredPhotographers.isEmpty) {
+          return const SliverFillRemaining(
+            child: Center(child: Text('No matching photographers found')),
+          );
+        }
+
         return SliverPadding(
           padding: const EdgeInsets.all(16),
           sliver: SliverList(
             delegate: SliverChildBuilderDelegate(
               (context, index) {
-                final photographer = provider.photographers[index];
+                final photographer = filteredPhotographers[index];
                 return _AnimatedPhotographerCard(
                   photographer: photographer,
                   index: index,
                 );
               },
-              childCount: provider.photographers.length,
+              childCount: filteredPhotographers.length,
             ),
           ),
         );

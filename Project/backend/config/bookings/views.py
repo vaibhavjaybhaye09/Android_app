@@ -6,6 +6,7 @@ from django.db.models import Q
 from .models import Booking
 from .serializers import BookingSerializer, BookingUpdateSerializer
 from accounts.permissions import IsPhotographer, IsVerified
+from accounts.models import User
 from photographers.models import Notification
 
 

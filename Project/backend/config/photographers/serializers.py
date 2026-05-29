@@ -28,12 +28,12 @@ class PhotographerProfileSerializer(serializers.ModelSerializer):
             'id', 'user', 'user_id', 'display_name', 'profile_picture', 'bio',
             'city', 'area', 'pincode', 'experience', 'rating',
             'website', 'location', 'phone_number', 'camera_details', 'lenses',
-            'is_team', 'team_members_count', 'followers', 'following',
+            'is_team', 'team_members_count', 'followers',
             'followers_count', 'following_count', 'posts_count', 'total_likes_received',
             'total_views_received', 'is_verified_photographer', 'verification_badge',
             'created_at', 'updated_at'
         )
-        read_only_fields = ('id', 'followers', 'following', 'created_at', 'updated_at')
+        read_only_fields = ('id', 'followers', 'created_at', 'updated_at')
     
     def get_posts_count(self, obj):
         return Post.objects.filter(photographer=obj.user, is_archived=False).count()

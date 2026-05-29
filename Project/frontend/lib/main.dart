@@ -8,6 +8,7 @@ import 'features/accounts/screens/forgot_password_screen.dart';
 import 'features/accounts/screens/login_screen.dart';
 import 'features/accounts/screens/otp_verification_screen.dart';
 import 'features/accounts/screens/register_screen.dart';
+import 'features/accounts/screens/role_selection_screen.dart';
 import 'features/photographers/screens/home_screen.dart';
 import 'features/bookings/providers/booking_provider.dart';
 import 'features/photographers/providers/photographer_provider.dart';
@@ -105,6 +106,7 @@ class MyApp extends StatelessWidget {
           '/verify-otp': (context) => const OtpVerificationScreen(),
           '/forgot-password': (context) => const ForgotPasswordScreen(),
           '/home': (context) => const HomeScreen(),
+          '/select-role': (context) => const RoleSelectionScreen(),
         },
       ),
     );
@@ -173,7 +175,11 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
     if (!mounted) return;
 
     if (isLoggedIn) {
-      Navigator.pushReplacementNamed(context, '/home');
+      if (authProvider.currentUser?.role == 'unassigned') {
+        Navigator.pushReplacementNamed(context, '/select-role');
+      } else {
+        Navigator.pushReplacementNamed(context, '/home');
+      }
     } else {
       Navigator.pushReplacementNamed(context, '/login');
     }

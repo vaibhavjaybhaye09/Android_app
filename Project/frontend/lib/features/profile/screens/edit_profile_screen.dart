@@ -1,4 +1,3 @@
-import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
@@ -23,6 +22,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   final TextEditingController _pincodeController = TextEditingController();
   List<int> _selectedSkillIds = [];
   XFile? _imageFile;
+  Uint8List? _imageBytes;
   String? _currentImageUrl;
 
   @override
@@ -46,8 +46,10 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     final XFile? image = await picker.pickImage(source: ImageSource.gallery);
     
     if (image != null) {
+      final bytes = await image.readAsBytes();
       setState(() {
         _imageFile = image;
+        _imageBytes = bytes;
       });
     }
   }
@@ -118,12 +120,10 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                   CircleAvatar(
                     radius: 60,
                     backgroundColor: Colors.grey[200],
-                    backgroundImage: _imageFile != null 
-                        ? (kIsWeb 
-                            ? NetworkImage(_imageFile!.path) 
-                            : FileImage(File(_imageFile!.path)) as ImageProvider)
-                        : (_currentImageUrl != null ? NetworkImage(_currentImageUrl!) : null),
-                    child: (_imageFile == null && _currentImageUrl == null)
+                    backgroundImage: _imageBytes != null 
+                        ? MemoryImage(_imageBytes!)
+                        : (_currentImageUrl != null ? NetworkImage(_currentImageUrl!) : null) as ImageProvider?,
+                    child: (_imageBytes == null && _currentImageUrl == null)
                         ? const Icon(Icons.person, size: 60)
                         : null,
                   ),

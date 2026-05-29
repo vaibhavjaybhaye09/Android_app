@@ -41,7 +41,11 @@ class _LoginScreenState extends State<LoginScreen> {
         return;
       }
 
-      Navigator.pushReplacementNamed(context, '/home');
+      if (authProvider.currentUser?.role == 'unassigned') {
+        Navigator.pushReplacementNamed(context, '/select-role');
+      } else {
+        Navigator.pushReplacementNamed(context, '/home');
+      }
     } catch (error) {
       if (!mounted) {
         return;

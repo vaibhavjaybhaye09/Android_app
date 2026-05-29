@@ -44,7 +44,7 @@ class PhotographerModel {
       hourlyRate: 50.0, // Default or map from a service price if available
       followersCount: json['followers_count'] as int? ?? 0,
       followingCount: json['following_count'] as int? ?? 0,
-      postsCount: json['total_views_received'] as int? ?? 0, // Using views as a placeholder if count not explicit
+      postsCount: json['posts_count'] as int? ?? 0,
       isVerified: json['is_verified_photographer'] as bool? ?? false,
       location: json['city'] != null ? "${json['city']}, ${json['area']}" : null,
     );
