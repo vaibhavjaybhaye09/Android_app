@@ -35,7 +35,7 @@ class AuthProvider extends ChangeNotifier {
     _currentUser = UserModel(
       id: int.tryParse(idStr ?? '0') ?? 0,
       email: email,
-      role: role ?? 'customer',
+      role: role ?? 'unassigned',
       accessToken: token,
       refreshToken: await _storage.read(key: _refreshTokenKey),
     );
@@ -51,6 +51,7 @@ class AuthProvider extends ChangeNotifier {
       final user = await _authService.login(email: email, password: password);
       _currentUser = user;
       await _persistUser(user);
+      notifyListeners();
     } finally {
       _setLoading(false);
     }
@@ -60,7 +61,6 @@ class AuthProvider extends ChangeNotifier {
     required String email,
     required String password,
     required String confirmPassword,
-    required String role,
   }) async {
     _setLoading(true);
     try {
@@ -68,8 +68,27 @@ class AuthProvider extends ChangeNotifier {
         email: email,
         password: password,
         confirmPassword: confirmPassword,
-        role: role,
       );
+    } finally {
+      _setLoading(false);
+    }
+  }
+
+  Future<void> setRole(String role) async {
+    _setLoading(true);
+    try {
+      await _authService.setRole(role: role);
+      if (_currentUser != null) {
+        _currentUser = UserModel(
+          id: _currentUser!.id,
+          email: _currentUser!.email,
+          role: role,
+          accessToken: _currentUser!.accessToken,
+          refreshToken: _currentUser!.refreshToken,
+        );
+        await _persistUser(_currentUser!);
+        notifyListeners();
+      }
     } finally {
       _setLoading(false);
     }
